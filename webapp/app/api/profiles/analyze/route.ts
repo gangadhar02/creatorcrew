@@ -71,10 +71,37 @@ async function dispatchAnalyzerWorkflow(jobId: string): Promise<string | null> {
 }
 
 export async function POST(request: NextRequest) {
-  const { handle: handleRaw, maxPosts } = (await request.json()) as {
-    handle: string;
-    maxPosts?: number;
-  };
+  try {
+    return await handlePost(request);
+  } catch (e) {
+    // Top-level safety net so the client never sees an HTML error page.
+    // Anything that escaped the inner try/catch (env var throws, JSON
+    // body parse failure, Supabase client errors before we have a job
+    // row, etc.) is converted to a structured JSON response.
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[/api/profiles/analyze] unhandled:", msg);
+    return NextResponse.json(
+      { error: `analyze failed: ${msg.slice(0, 500)}` },
+      { status: 500 }
+    );
+  }
+}
+
+async function handlePost(request: NextRequest) {
+  let parsedBody: { handle?: string; maxPosts?: number };
+  try {
+    parsedBody = (await request.json()) as {
+      handle: string;
+      maxPosts?: number;
+    };
+  } catch {
+    return NextResponse.json(
+      { error: "Body must be JSON: { handle: string, maxPosts?: number }" },
+      { status: 400 }
+    );
+  }
+  const handleRaw = parsedBody.handle;
+  const maxPosts = parsedBody.maxPosts;
   if (!handleRaw) {
     return NextResponse.json({ error: "handle required" }, { status: 400 });
   }

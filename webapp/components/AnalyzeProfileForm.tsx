@@ -67,7 +67,17 @@ export default function AnalyzeProfileForm() {
           maxPosts: Math.max(1, Math.min(500, maxPosts || 90)),
         }),
       });
-      const data = await res.json();
+      // Some failure modes (Vercel 502/504, framework error pages)
+      // return HTML — don't crash on JSON.parse.
+      const text = await res.text();
+      let data: { mode?: string; handle?: string; job_id?: string; error?: string };
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error(
+          `Server returned non-JSON (HTTP ${res.status}). ${text.slice(0, 200)}`
+        );
+      }
       if (!res.ok) {
         throw new Error(data.error || `HTTP ${res.status}`);
       }
@@ -79,6 +89,9 @@ export default function AnalyzeProfileForm() {
         router.push(`/profiles/${data.handle}`);
         router.refresh();
         return;
+      }
+      if (!data.job_id) {
+        throw new Error("Server didn't return a job id");
       }
       setJob({
         id: data.job_id,
