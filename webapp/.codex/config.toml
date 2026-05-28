@@ -1,0 +1,12 @@
+[mcp_servers.shadcn]
+command = "npx"
+args = [
+    "shadcn@latest",
+    "mcp",
+]
+
+[mcp_servers.shadcn.tools.search_items_in_registries]
+approval_mode = "approve"
+
+[mcp_servers.shadcn.tools.get_item_examples_from_registries]
+approval_mode = "approve"

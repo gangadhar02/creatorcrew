@@ -1,0 +1,452 @@
+"use client";
+
+import { useState } from "react";
+import { clsx } from "clsx";
+import MarkdownView from "./MarkdownView";
+import { igImg } from "@/lib/proxy-image";
+
+export type ProfilePost = {
+  id: string;
+  media_pk: string;
+  code: string | null;
+  url: string;
+  type: "Post" | "Reel" | "Carousel" | "IGTV";
+  caption: string | null;
+  like_count: number;
+  comment_count: number;
+  view_count: number;
+  play_count: number;
+  taken_at: string | null;
+  thumbnail_url: string | null;
+  engagement_rate: number | null;
+  outlier_multiplier: number | null;
+  transcript: string | null;
+  vision_analysis_md: string | null;
+};
+
+function fmtNum(n: number | null | undefined): string {
+  if (!n) return "0";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+function fmtAge(iso: string | null): string {
+  if (!iso) return "";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const day = 24 * 60 * 60 * 1000;
+  const days = diffMs / day;
+  if (days < 1) return `${Math.round(diffMs / (60 * 60 * 1000))}h`;
+  if (days < 30) return `${Math.round(days)}d`;
+  if (days < 365) return `${Math.round(days / 30)}mo`;
+  return `${Math.round(days / 365)}y`;
+}
+
+export default function ProfilePostsGrid({ posts }: { posts: ProfilePost[] }) {
+  const [open, setOpen] = useState<ProfilePost | null>(null);
+
+  if (posts.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--card)] p-10 text-center text-sm text-[var(--muted-foreground)]">
+        No posts match these filters.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {posts.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setOpen(p)}
+            className="group block overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)] text-left transition-colors hover:border-[var(--primary)]"
+          >
+            <div className="relative aspect-[4/5] bg-zinc-200 dark:bg-zinc-800">
+              {p.thumbnail_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={igImg(p.thumbnail_url)}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+              <div className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                {p.type}
+              </div>
+              {p.outlier_multiplier !== null && p.outlier_multiplier >= 2 && (
+                <div className="absolute right-2 top-2 rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-semibold text-black">
+                  {p.outlier_multiplier.toFixed(2)}×
+                </div>
+              )}
+              <div className="absolute right-2 bottom-2 flex gap-1">
+                {p.transcript && (
+                  <span
+                    title="Has transcript"
+                    className="rounded bg-emerald-500/90 px-1 py-0.5 text-[9px] font-semibold text-white"
+                  >
+                    T
+                  </span>
+                )}
+                {p.vision_analysis_md && (
+                  <span
+                    title="Has vision analysis"
+                    className="rounded bg-sky-500/90 px-1 py-0.5 text-[9px] font-semibold text-white"
+                  >
+                    V
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="p-2">
+              <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)] tabular-nums">
+                <div className="flex items-center gap-2">
+                  <span title="likes">♡ {fmtNum(p.like_count)}</span>
+                  <span title="comments">💬 {fmtNum(p.comment_count)}</span>
+                  {p.view_count > 0 && (
+                    <span title="views">▶ {fmtNum(p.view_count)}</span>
+                  )}
+                </div>
+                <span>{fmtAge(p.taken_at)}</span>
+              </div>
+              <div className="mt-1 line-clamp-2 text-xs text-[var(--foreground)]">
+                {p.caption || ""}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {open && (
+        <PostModal
+          post={open}
+          onClose={() => setOpen(null)}
+          onUpdate={(patch) =>
+            setOpen((cur) => (cur ? { ...cur, ...patch } : cur))
+          }
+        />
+      )}
+    </>
+  );
+}
+
+function PostModal({
+  post,
+  onClose,
+  onUpdate,
+}: {
+  post: ProfilePost;
+  onClose: () => void;
+  onUpdate: (patch: Partial<ProfilePost>) => void;
+}) {
+  const [tabState, setTabState] = useState<"caption" | "transcript" | "vision">(
+    "caption"
+  );
+  const [transcribing, setTranscribing] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function transcribe() {
+    setErr(null);
+    setTranscribing(true);
+    setTabState("transcript");
+    try {
+      const res = await fetch(
+        `/api/profile-posts/${post.id}/transcribe`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      onUpdate({ transcript: data.transcript });
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
+  async function analyze() {
+    setErr(null);
+    setAnalyzing(true);
+    setTabState("vision");
+    try {
+      const res = await fetch(`/api/profile-posts/${post.id}/analyze`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      onUpdate({ vision_analysis_md: data.vision_analysis_md });
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  const isReelLike = post.type === "Reel" || post.type === "IGTV";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 sticky top-0 bg-[var(--card)] z-10">
+          <div className="truncate text-sm font-medium">
+            {post.caption?.split("\n")[0]?.slice(0, 80) || `${post.type} post`}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href={post.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--border)]/30"
+            >
+              Open ↗
+            </a>
+            <button
+              onClick={onClose}
+              className="rounded-md border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--border)]/30"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-black p-4 flex items-center justify-center">
+          {post.thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={igImg(post.thumbnail_url)}
+              alt=""
+              className="max-h-[50vh] w-auto rounded"
+            />
+          ) : (
+            <div className="aspect-[4/5] w-full max-w-md bg-zinc-800 rounded" />
+          )}
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+            <Stat
+              label="vs views"
+              value={
+                post.outlier_multiplier
+                  ? `${post.outlier_multiplier.toFixed(2)}×`
+                  : "—"
+              }
+              highlight={
+                !!post.outlier_multiplier && post.outlier_multiplier >= 2
+              }
+            />
+            <Stat label="views" value={fmtNum(post.view_count)} />
+            <Stat label="likes" value={fmtNum(post.like_count)} />
+            <Stat label="comments" value={fmtNum(post.comment_count)} />
+            <Stat
+              label="eng. rate"
+              value={
+                post.engagement_rate
+                  ? `${post.engagement_rate.toFixed(2)}%`
+                  : "—"
+              }
+            />
+          </div>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-2 border-b border-[var(--border)]">
+            <TabButton
+              active={tabState === "caption"}
+              onClick={() => setTabState("caption")}
+              label="Caption"
+            />
+            <TabButton
+              active={tabState === "transcript"}
+              onClick={() => setTabState("transcript")}
+              label={`Transcript${post.transcript ? " ✓" : ""}`}
+              disabled={!isReelLike}
+              title={!isReelLike ? "Reels only" : undefined}
+            />
+            <TabButton
+              active={tabState === "vision"}
+              onClick={() => setTabState("vision")}
+              label={`Vision${post.vision_analysis_md ? " ✓" : ""}`}
+            />
+          </div>
+
+          {err && (
+            <p className="text-xs text-rose-600 dark:text-rose-400">{err}</p>
+          )}
+
+          {tabState === "caption" && (
+            <div>
+              {post.caption ? (
+                <div className="relative">
+                  <CopyButton
+                    text={post.caption}
+                    className="absolute right-2 top-2"
+                  />
+                  <p className="whitespace-pre-wrap rounded-md border border-[var(--border)] bg-[var(--background)] p-3 pr-16 text-sm">
+                    {post.caption}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-[var(--muted-foreground)]">(no caption)</p>
+              )}
+            </div>
+          )}
+
+          {tabState === "transcript" && (
+            <div>
+              {post.transcript ? (
+                <div className="relative">
+                  <CopyButton
+                    text={post.transcript}
+                    className="absolute right-2 top-2"
+                  />
+                  <p className="whitespace-pre-wrap rounded-md border border-[var(--border)] bg-[var(--background)] p-3 pr-16 text-sm">
+                    {post.transcript}
+                  </p>
+                </div>
+              ) : !isReelLike ? (
+                <p className="text-sm text-[var(--muted-foreground)]">
+                  Transcripts are only generated for Reels and IGTV.
+                </p>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={transcribe}
+                    disabled={transcribing}
+                    className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary-foreground)] disabled:opacity-50"
+                  >
+                    {transcribing
+                      ? "Transcribing… (15-45s)"
+                      : "Generate transcript"}
+                  </button>
+                  <span className="text-xs text-[var(--muted-foreground)]">
+                    Re-fetches the reel, runs Gemini audio understanding, saves
+                    to DB.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tabState === "vision" && (
+            <div>
+              {post.vision_analysis_md ? (
+                <div className="rounded-md border border-[var(--border)] bg-[var(--background)] p-4">
+                  <MarkdownView>{post.vision_analysis_md}</MarkdownView>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={analyze}
+                    disabled={analyzing}
+                    className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary-foreground)] disabled:opacity-50"
+                  >
+                    {analyzing
+                      ? "Analyzing… (20-60s)"
+                      : "Run vision analysis"}
+                  </button>
+                  <span className="text-xs text-[var(--muted-foreground)]">
+                    8-section deconstruction: hook, structure, on-screen text,
+                    audio, technique, tools, takeaway.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {post.taken_at && (
+            <div className="text-xs text-[var(--muted-foreground)]">
+              Posted {new Date(post.taken_at).toLocaleString()}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  label,
+  disabled,
+  title,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  disabled?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={clsx(
+        "border-b-2 px-3 py-1.5 text-xs transition-colors",
+        active
+          ? "border-[var(--primary)] text-[var(--foreground)] font-medium"
+          : "border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
+        disabled && "opacity-40 cursor-not-allowed"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={clsx(
+        "rounded-md border border-[var(--border)] p-2",
+        highlight && "border-amber-400/60 bg-amber-400/10"
+      )}
+    >
+      <div className="text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">
+        {label}
+      </div>
+      <div className="mt-0.5 font-medium tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function CopyButton({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        await navigator.clipboard.writeText(text);
+        setDone(true);
+        setTimeout(() => setDone(false), 1500);
+      }}
+      className={clsx(
+        "rounded border border-[var(--border)] bg-[var(--card)] px-1.5 py-0.5 text-[10px] hover:bg-[var(--border)]/30",
+        className
+      )}
+    >
+      {done ? "✓ Copied" : "Copy"}
+    </button>
+  );
+}
