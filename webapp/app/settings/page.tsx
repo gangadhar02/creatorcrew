@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { Card } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
+import SetPasswordCard from "@/components/SetPasswordCard";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,13 @@ export default async function SettingsPage() {
             <Row label="ID" value={ws.workspaceId || "—"} />
           </div>
         </Card>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-mono uppercase tracking-widest text-muted-foreground">
+          Account
+        </h2>
+        <SetPasswordCard />
       </section>
 
       <section className="space-y-3">
