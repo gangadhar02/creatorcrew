@@ -37,17 +37,26 @@ const cache: Partial<
   Record<IGAccount, { cookies: IGCookies; loadedAt: number }>
 > = {};
 
-function configPath(): string {
+function configPath(): string | null {
   const projectDir = process.env.PYTHON_PROJECT_DIR;
-  if (!projectDir) {
-    throw new Error("PYTHON_PROJECT_DIR not set in .env.local");
-  }
+  if (!projectDir) return null;
   return path.join(projectDir, "config.json");
 }
 
+/**
+ * Read config.json if it exists. Returns an empty object on cloud hosts
+ * (Vercel etc.) where the file isn't present — callers should fall back
+ * to env-var cookies in that case.
+ */
 function readConfigFile(): ConfigJson {
-  const raw = fs.readFileSync(configPath(), "utf-8");
-  return JSON.parse(raw) as ConfigJson;
+  const p = configPath();
+  if (!p) return {};
+  try {
+    const raw = fs.readFileSync(p, "utf-8");
+    return JSON.parse(raw) as ConfigJson;
+  } catch {
+    return {};
+  }
 }
 
 function toCookies(
@@ -88,6 +97,16 @@ function readScrapeCookiesFromEnv(): IGCookies | null {
   return null;
 }
 
+function readPersonalCookiesFromEnv(): IGCookies | null {
+  const sessionId = process.env.IG_SESSION_ID?.trim();
+  const csrfToken = process.env.IG_CSRFTOKEN?.trim();
+  const userId = process.env.IG_USER_ID?.trim();
+  if (sessionId && csrfToken && userId) {
+    return toCookies(sessionId, csrfToken, userId, "personal");
+  }
+  return null;
+}
+
 function readScrapeCookiesFromConfig(cfg: ConfigJson): IGCookies | null {
   if (
     cfg.ig_scrape_session_id &&
@@ -106,31 +125,48 @@ function readScrapeCookiesFromConfig(cfg: ConfigJson): IGCookies | null {
 
 /** True when a dedicated scraping/dummy account is configured. */
 export function isScrapeAccountConfigured(): boolean {
-  try {
-    if (readScrapeCookiesFromEnv()) return true;
-    const cfg = readConfigFile();
-    return !!readScrapeCookiesFromConfig(cfg);
-  } catch {
-    return false;
-  }
+  if (readScrapeCookiesFromEnv()) return true;
+  const cfg = readConfigFile();
+  return !!readScrapeCookiesFromConfig(cfg);
 }
 
 function readCookiesForAccount(account: IGAccount): IGCookies {
+  // Env-var path — works on Vercel, GitHub Actions, any cloud host.
+  // Tried FIRST so production never tries to open a local config.json
+  // that doesn't exist on the deploy.
+  if (account === "personal") {
+    const fromEnv = readPersonalCookiesFromEnv();
+    if (fromEnv) return fromEnv;
+  } else {
+    const fromEnv = readScrapeCookiesFromEnv();
+    if (fromEnv) return fromEnv;
+  }
+
+  // File-based fallback — only useful for local Mac dev where config.json
+  // exists at PYTHON_PROJECT_DIR.
   const cfg = readConfigFile();
 
   if (account === "personal") {
+    if (!cfg.ig_session_id || !cfg.ig_csrftoken || !cfg.ig_user_id) {
+      throw new Error(
+        "IG personal cookies not configured. Set IG_SESSION_ID / IG_CSRFTOKEN / IG_USER_ID in env, or fill in config.json for local dev."
+      );
+    }
     return readPersonalCookies(cfg);
   }
 
-  const fromEnv = readScrapeCookiesFromEnv();
-  if (fromEnv) return fromEnv;
-
+  // Scraping: env miss, try config file, then fall back to personal.
   const fromCfg = readScrapeCookiesFromConfig(cfg);
   if (fromCfg) return fromCfg;
 
+  if (!cfg.ig_session_id || !cfg.ig_csrftoken || !cfg.ig_user_id) {
+    throw new Error(
+      "IG scrape cookies not configured. Set IG_SCRAPE_SESSION_ID / IG_SCRAPE_CSRFTOKEN / IG_SCRAPE_USER_ID in env, or add ig_scrape_* to config.json for local dev."
+    );
+  }
   console.warn(
-    "[ig-config] ig_scrape_* not set — scraping will use your personal SaveSync cookies. " +
-      "Add a dummy account (ig_scrape_session_id / ig_scrape_csrftoken / ig_scrape_user_id) to config.json."
+    "[ig-config] ig_scrape_* not set — scraping will fall back to personal SaveSync cookies. " +
+      "Add a dummy account (IG_SCRAPE_* env vars or ig_scrape_* in config.json)."
   );
   return readPersonalCookies(cfg);
 }
