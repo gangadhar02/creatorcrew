@@ -23,6 +23,18 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
+  // Defensive: if a Supabase magic-link `code` (or legacy `token_hash`)
+  // arrives on ANY path other than /auth/callback, route it through the
+  // callback handler. Covers misconfigured Supabase Site URL / Redirect
+  // URLs where the link lands on `/` instead of `/auth/callback`.
+  const code = request.nextUrl.searchParams.get("code");
+  const tokenHash = request.nextUrl.searchParams.get("token_hash");
+  if ((code || tokenHash) && pathname !== "/auth/callback") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
