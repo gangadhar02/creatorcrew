@@ -61,4 +61,8 @@ jobs:
           DISABLE_AUTO_ENRICH: 'true'
           DISABLE_AUTO_MIRROR: 'true'
           DISABLE_AUTO_EMBED: 'true'
+          # Longer retry backoffs for 429s. IG rate-limit windows decay
+          # in tens of minutes, not seconds. Default (30s/90s) burns
+          # attempts too fast on flagged cookies. 60s → 5m → 10m → 15m.
+          IG_FETCH_RETRY_DELAYS_MS: '60000,300000,600000,900000'
         run: npx tsx scripts/analyze-profile.ts ${{ inputs.job_id }}

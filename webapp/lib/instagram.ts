@@ -47,16 +47,28 @@ export class IGRateLimited extends Error {
 }
 
 /**
- * Retry schedule for transient failures (429s and 5xx). Kept short so user-
- * facing route handlers don't block past Next.js's maxDuration. Background
- * jobs that can wait longer should call igFetch in a wrapper of their own.
+ * Retry schedule for transient failures (429s and 5xx).
+ *
+ * Default is short (2 min total) so user-facing route handlers don't block
+ * past Next.js's maxDuration. Background jobs (GitHub Actions runners) set
+ * IG_FETCH_RETRY_DELAYS_MS=60000,300000,600000,900000 to wait longer —
+ * IG rate-limits cool down over many minutes, not seconds.
  */
-const RETRY_DELAYS_MS = [30_000, 90_000]; // 30s, 1m30s — total ~2 min
+function getRetryDelaysMs(): number[] {
+  const raw = process.env.IG_FETCH_RETRY_DELAYS_MS;
+  if (!raw) return [30_000, 90_000]; // 30s, 1m30s
+  const parsed = raw
+    .split(",")
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  return parsed.length > 0 ? parsed : [30_000, 90_000];
+}
 
 export async function igFetch<T = unknown>(
   url: string,
   account: IGAccount = "scraping"
 ): Promise<T> {
+  const RETRY_DELAYS_MS = getRetryDelaysMs();
   let lastBody = "";
   for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
     const r = await fetch(url, {
@@ -93,7 +105,8 @@ export async function igFetch<T = unknown>(
     if (!shouldRetry) {
       if (isRateLimit) {
         throw new IGRateLimited(
-          `IG rate-limited (429) after ${attempt + 1} attempts. Try again in a few minutes.`
+          `Instagram rate-limited the request (429) after ${attempt + 1} attempts. ` +
+            `Either the IP is throttled (wait several hours and retry) or the IG_SCRAPE_* cookies are flagged — try fresh cookies from a different dummy IG account.`
         );
       }
       throw new Error(`IG HTTP ${r.status}: ${body.slice(0, 200)}`);
