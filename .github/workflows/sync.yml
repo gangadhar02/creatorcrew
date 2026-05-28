@@ -19,11 +19,15 @@ name: instagram-sync
 #   ENABLE_VISION_ANALYSIS      — "true" / "false"
 
 on:
-  schedule:
-    # Twice daily — 06:00 and 18:00 UTC. Best-effort scheduling on the
-    # GitHub Actions free tier; runs can be delayed a few minutes during
-    # peak traffic windows. Acceptable for IG saves cadence.
-    - cron: '0 6,18 * * *'
+  # CRON DISABLED — Instagram challenged the scrape/sync cookies with
+  # WhatsApp verification prompts. Re-enable only after:
+  #   (a) 48–72 hours of zero automated IG access (lets the throttle decay)
+  #   (b) Optionally, rotate IG_SESSION_ID / IG_CSRFTOKEN / IG_USER_ID to
+  #       fresh cookies pulled from a clean browser sign-in.
+  # Until then this workflow only fires when triggered manually from the
+  # Actions tab.
+  # schedule:
+  #   - cron: '0 6,18 * * *'   # twice daily, 06:00 and 18:00 UTC
   workflow_dispatch:
     # Manual trigger from the Actions tab — useful when you just added a
     # bunch of new saves on Instagram and don't want to wait for the next
