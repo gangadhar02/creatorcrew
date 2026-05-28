@@ -135,6 +135,31 @@ async function handlePost(request: NextRequest) {
   const jobId = (jobIns.data as { id: string }).id;
 
   const hasDispatchToken = !!process.env.ANALYZER_DISPATCH_TOKEN;
+  const onVercel = !!process.env.VERCEL;
+
+  // On Vercel (serverless) the inline path can't finish before the function
+  // timeout (10s on Hobby, 60s on Pro) since an IG scrape takes 30-90s. Fail
+  // fast with a clear setup hint instead of running and timing out.
+  if (onVercel && !hasDispatchToken) {
+    await sb
+      .from("analyzer_jobs")
+      .update({
+        status: "failed",
+        completed_at: new Date().toISOString(),
+        error_message:
+          "Queue not configured: ANALYZER_DISPATCH_TOKEN missing in Vercel env vars",
+      })
+      .eq("id", jobId);
+    return NextResponse.json(
+      {
+        job_id: jobId,
+        mode: "queued",
+        error:
+          "Profile Analyzer queue is not wired up on this deploy. Set ANALYZER_DISPATCH_TOKEN (a GitHub PAT with Actions write on this repo) in Vercel → Settings → Environment Variables, then redeploy.",
+      },
+      { status: 503 }
+    );
+  }
 
   // ============================================================================
   // QUEUED MODE — production. Fire-and-forget GitHub workflow dispatch.
