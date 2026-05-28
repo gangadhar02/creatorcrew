@@ -1,0 +1,64 @@
+name: analyze-profile
+
+# On-demand Instagram Profile Analyzer. Vercel functions can't talk to
+# Instagram (IG rate-limits AWS IPs aggressively), so the webapp queues
+# a job into the analyzer_jobs table and triggers this workflow. The
+# runner here uses fresh GitHub-hosted IPs that IG hasn't flagged yet.
+#
+# Triggered programmatically via:
+#   POST /repos/{owner}/{repo}/actions/workflows/analyze-profile.yml/dispatches
+#   { "ref": "main", "inputs": { "job_id": "<uuid>" } }
+#
+# Required GitHub repo secrets:
+#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+#   IG_SCRAPE_SESSION_ID, IG_SCRAPE_CSRFTOKEN, IG_SCRAPE_USER_ID
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: 'analyzer_jobs.id UUID to process'
+        required: true
+        type: string
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Per-job concurrency so the same job can't get picked up twice.
+    concurrency:
+      group: analyze-${{ inputs.job_id }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install webapp deps
+        working-directory: webapp
+        run: npm ci
+
+      - name: Run analyzer
+        working-directory: webapp
+        env:
+          # Supabase
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Instagram scrape cookies (dummy account)
+          IG_SCRAPE_SESSION_ID: ${{ secrets.IG_SCRAPE_SESSION_ID }}
+          IG_SCRAPE_CSRFTOKEN: ${{ secrets.IG_SCRAPE_CSRFTOKEN }}
+          IG_SCRAPE_USER_ID: ${{ secrets.IG_SCRAPE_USER_ID }}
+          # Gemini — only needed if downstream auto-enrichment hooks fire.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Disable auto-enrichment / mirror / embed inside the CLI so
+          # this job stays fast. Background backfills run on the cron.
+          DISABLE_AUTO_ENRICH: 'true'
+          DISABLE_AUTO_MIRROR: 'true'
+          DISABLE_AUTO_EMBED: 'true'
+        run: npx tsx scripts/analyze-profile.ts ${{ inputs.job_id }}
