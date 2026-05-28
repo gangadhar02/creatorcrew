@@ -1,0 +1,12 @@
+config.json
+.env
+.env.local
+state.json
+sync.log
+launchd-stdout.log
+launchd-stderr.log
+.venv/
+media/
+__pycache__/
+*.pyc
+.DS_Store

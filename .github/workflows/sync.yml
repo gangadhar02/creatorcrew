@@ -1,0 +1,91 @@
+name: instagram-sync
+
+# Runs the Python sync.py against Supabase on a schedule. Replaces the
+# launchd plist that previously ran on the local Mac.
+#
+# Secrets required (set in repo Settings → Secrets and variables → Actions):
+#   SUPABASE_URL                — https://<project>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY   — service_role key (NOT anon)
+#   GEMINI_API_KEY              — Google AI Studio key for vision analysis
+#   IG_SESSION_ID               — Instagram sessionid cookie
+#   IG_CSRFTOKEN                — Instagram csrftoken cookie
+#   IG_USER_ID                  — Instagram ds_user_id cookie
+#
+# Optional secrets / vars:
+#   SYNC_WORKSPACE_ID           — UUID of the workspace to sync into (preferred)
+#   SYNC_WORKSPACE_EMAIL        — fallback: owner_email of the workspace
+#   COLLECTIONS_FILTER          — comma-separated list, e.g. "Content to make,Content Research"
+#   VISION_MODEL                — defaults to gemini-2.5-flash
+#   ENABLE_VISION_ANALYSIS      — "true" / "false"
+
+on:
+  schedule:
+    # Twice daily — 06:00 and 18:00 UTC. Best-effort scheduling on the
+    # GitHub Actions free tier; runs can be delayed a few minutes during
+    # peak traffic windows. Acceptable for IG saves cadence.
+    - cron: '0 6,18 * * *'
+  workflow_dispatch:
+    # Manual trigger from the Actions tab — useful when you just added a
+    # bunch of new saves on Instagram and don't want to wait for the next
+    # cron firing.
+    inputs:
+      collections_filter:
+        description: 'Override collections filter (comma-separated). Leave blank to use the COLLECTIONS_FILTER secret.'
+        required: false
+        type: string
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Tight timeout — the sync historically takes 1–4 minutes. If it hits
+    # 30, something is broken and we should fail loudly instead of burning
+    # quota.
+    timeout-minutes: 30
+    concurrency:
+      # Don't run two cron jobs in parallel — they'd both try to dual-write
+      # the same creator_posts rows.
+      group: instagram-sync
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run sync
+        env:
+          # Supabase
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Gemini
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Instagram cookies (refresh in repo secrets every few weeks)
+          IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
+          IG_CSRFTOKEN: ${{ secrets.IG_CSRFTOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          # Workspace targeting (post-auth, multi-tenant safe)
+          SYNC_WORKSPACE_ID: ${{ secrets.SYNC_WORKSPACE_ID }}
+          SYNC_WORKSPACE_EMAIL: ${{ secrets.SYNC_WORKSPACE_EMAIL }}
+          # Behavior knobs
+          VISION_MODEL: ${{ vars.VISION_MODEL || 'gemini-2.5-flash' }}
+          ENABLE_VISION_ANALYSIS: ${{ vars.ENABLE_VISION_ANALYSIS || 'true' }}
+          COLLECTIONS_FILTER: ${{ inputs.collections_filter || secrets.COLLECTIONS_FILTER }}
+          KEEP_MEDIA_FILES: 'false'
+        run: python sync.py
+
+      - name: Upload sync log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-log
+          path: sync.log
+          if-no-files-found: ignore
+          retention-days: 14

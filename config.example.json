@@ -1,0 +1,12 @@
+{
+  "ig_session_id": "PASTE_sessionid_FROM_CHROME_DEVTOOLS",
+  "ig_csrftoken": "PASTE_csrftoken_FROM_CHROME_DEVTOOLS",
+  "ig_user_id": "PASTE_ds_user_id_FROM_CHROME_DEVTOOLS",
+  "notion_token": "ntn_PASTE_YOUR_INTEGRATION_TOKEN",
+  "notion_database_id": "c3ddd222-a58c-42a9-87d6-81a03a6cd25f",
+  "collections_filter": ["Content to make", "Content Research"],
+  "gemini_api_key": "PASTE_GEMINI_API_KEY",
+  "enable_vision_analysis": true,
+  "vision_model": "gemini-2.5-flash",
+  "keep_media_files": false
+}
