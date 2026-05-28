@@ -28,6 +28,7 @@ type SearchParams = Promise<{
   sort?: string;
   tab?: string;
   q?: string;
+  web?: string;
 }>;
 
 const TOP_TABS = [
@@ -155,6 +156,7 @@ async function querySemanticDiscoverPosts(
     hideSeen: boolean;
     hideImages: boolean;
     q: string;
+    fetchWeb: boolean;
   }
 ): Promise<{
   posts: PostWithCreator[];
@@ -164,10 +166,13 @@ async function querySemanticDiscoverPosts(
 }> {
   const sb = getSupabase();
 
-  // Pull fresh Instagram + YouTube results before searching the library.
-  const webSearch = await ingestWebSearchForQuery(opts.q, opts.platforms, {
-    count: 30,
-  });
+  // Web-search ingestion is opt-in (?web=1). Without it, the keyword
+  // search only ranks against the workspace's existing creator_posts
+  // and does NOT auto-create new creator rows for every author found.
+  // Toggle exposed in the UI as "Pull fresh posts from the web".
+  const webSearch = opts.fetchWeb
+    ? await ingestWebSearchForQuery(opts.q, opts.platforms, { count: 30 })
+    : null;
 
   const result = await discover({
     q: opts.q,
@@ -225,6 +230,10 @@ export default async function DiscoverPage({
   const sort = sp.sort || "outlier";
   const q = sp.q?.trim() || "";
   const usingDefaultOutlier = sp.min_outlier == null;
+  // ?web=1 → ingest fresh creators+posts from YT/IG/X for this query.
+  // Off by default to prevent the search box from auto-adding 100+
+  // creators to the workspace every time someone types a topic.
+  const fetchWeb = sp.web === "1";
 
   const ws = await getWorkspaceContext();
   const sb = getSupabase();
@@ -251,6 +260,7 @@ export default async function DiscoverPage({
     hideSeen,
     hideImages,
     q,
+    fetchWeb,
   };
 
   let postsResults: PostWithCreator[] = [];

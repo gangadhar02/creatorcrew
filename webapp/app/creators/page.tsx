@@ -4,6 +4,7 @@ import { getWorkspaceContext } from "@/lib/workspace";
 import { igImg } from "@/lib/proxy-image";
 import type { Creator } from "@/lib/types";
 import CreatorsClient from "@/components/CreatorsClient";
+import CreatorCardActions from "@/components/CreatorCardActions";
 
 export const dynamic = "force-dynamic";
 
@@ -134,11 +135,15 @@ export default async function CreatorsPage({
       ) : (
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {creators.map((c) => (
-            <Link
+            <div
               key={c.id}
-              href={`/creators/${c.platform}/${c.handle}`}
-              className="block rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 card-hover"
+              className="group relative rounded-lg border border-border bg-card transition-colors hover:border-primary/40 card-hover"
             >
+              <CreatorCardActions creatorId={c.id} handle={c.handle} />
+              <Link
+                href={`/creators/${c.platform}/${c.handle}`}
+                className="block p-4"
+              >
               <div className="flex items-start gap-3">
                 {c.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -184,7 +189,8 @@ export default async function CreatorsPage({
                   </div>
                 </div>
               </div>
-            </Link>
+              </Link>
+            </div>
           ))}
         </div>
       )}
