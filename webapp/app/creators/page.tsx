@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import { getWorkspaceContext } from "@/lib/workspace";
-import { igImg } from "@/lib/proxy-image";
 import type { Creator } from "@/lib/types";
 import CreatorsClient from "@/components/CreatorsClient";
-import CreatorCardActions from "@/components/CreatorCardActions";
+import CreatorsGrid from "@/components/CreatorsGrid";
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +12,6 @@ const TOP_TABS = [
   { id: "creators", label: "Creators", href: "/creators" },
   { id: "lists", label: "My Lists", href: "/creators?lists=1" },
 ];
-
-function fmtNum(n: number | null | undefined): string {
-  if (!n) return "—";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 type SearchParams = Promise<{ list?: string; lists?: string }>;
 
@@ -133,66 +125,7 @@ export default async function CreatorsPage({
               : "No creators yet. Use the form above to add one."}
         </div>
       ) : (
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {creators.map((c) => (
-            <div
-              key={c.id}
-              className="group relative rounded-lg border border-border bg-card transition-colors hover:border-primary/40 card-hover"
-            >
-              <CreatorCardActions creatorId={c.id} handle={c.handle} />
-              <Link
-                href={`/creators/${c.platform}/${c.handle}`}
-                className="block p-4"
-              >
-              <div className="flex items-start gap-3">
-                {c.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={c.platform === "instagram" ? igImg(c.avatar_url) : c.avatar_url}
-                    alt=""
-                    className="h-10 w-10 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-10 w-10 shrink-0 rounded-full bg-[var(--border)]" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <div className="font-medium truncate text-sm">
-                      {c.display_name || `@${c.handle}`}
-                    </div>
-                    {c.is_verified && (
-                      <span className="text-xs text-sky-500">✓</span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-[var(--muted-foreground)] truncate">
-                    {c.platform} · @{c.handle}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-                <div>
-                  <div className="text-[var(--muted-foreground)]">followers</div>
-                  <div className="font-medium tabular-nums">
-                    {fmtNum(c.follower_count)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[var(--muted-foreground)]">reel views</div>
-                  <div className="font-medium tabular-nums">
-                    {fmtNum(c.typical_reel_views)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[var(--muted-foreground)]">post likes</div>
-                  <div className="font-medium tabular-nums">
-                    {fmtNum(c.typical_post_likes)}
-                  </div>
-                </div>
-              </div>
-              </Link>
-            </div>
-          ))}
-        </div>
+        <CreatorsGrid creators={creators} />
       )}
     </div>
   );
