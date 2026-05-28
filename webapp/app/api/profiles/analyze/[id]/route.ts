@@ -17,6 +17,22 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
+  request: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    return await handleGet(request, ctx);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[/api/profiles/analyze/[id]] unhandled:", msg);
+    return NextResponse.json(
+      { error: `status fetch failed: ${msg.slice(0, 500)}` },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleGet(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {

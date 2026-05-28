@@ -35,14 +35,35 @@ export default function AnalyzeProfileForm() {
       try {
         const res = await fetch(`/api/profiles/analyze/${job.id}`);
         if (!res.ok) return;
-        const data = (await res.json()) as JobStatus;
+        const text = await res.text();
+        if (!text) return;
+        let data: JobStatus;
+        try {
+          data = JSON.parse(text) as JobStatus;
+        } catch {
+          // Server returned HTML / text — surface it instead of silently
+          // dying with "Unexpected token A". Stop polling on this.
+          setError(
+            `Polling failed (HTTP ${res.status}). ${text.slice(0, 200)}`
+          );
+          setJob((j) =>
+            j
+              ? {
+                  ...j,
+                  status: "failed",
+                  error_message: `Non-JSON response from status endpoint`,
+                }
+              : null
+          );
+          return;
+        }
         setJob(data);
         if (data.status === "completed") {
           router.push(`/profiles/${data.handle}`);
           router.refresh();
         }
       } catch {
-        // transient — keep polling
+        // network blip — keep polling
       }
     };
     const interval = setInterval(tick, 3000);
