@@ -11,7 +11,8 @@ name: analyze-profile
 #
 # Required GitHub repo secrets:
 #   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-#   IG_SCRAPE_SESSION_ID, IG_SCRAPE_CSRFTOKEN, IG_SCRAPE_USER_ID
+#   APIFY_API_TOKEN          (primary fetch backend — see IG_FETCH_MODE)
+#   IG_SCRAPE_SESSION_ID, IG_SCRAPE_CSRFTOKEN, IG_SCRAPE_USER_ID  (cookie fallback)
 
 on:
   workflow_dispatch:
@@ -50,7 +51,11 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          # Instagram scrape cookies (dummy account)
+          # Fetch backend: Apify (primary) with cookie fallback. Defaults to
+          # "apify" here if the secret is unset.
+          IG_FETCH_MODE: ${{ vars.IG_FETCH_MODE || 'apify' }}
+          APIFY_API_TOKEN: ${{ secrets.APIFY_API_TOKEN }}
+          # Instagram scrape cookies (dummy account) — fallback only
           IG_SCRAPE_SESSION_ID: ${{ secrets.IG_SCRAPE_SESSION_ID }}
           IG_SCRAPE_CSRFTOKEN: ${{ secrets.IG_SCRAPE_CSRFTOKEN }}
           IG_SCRAPE_USER_ID: ${{ secrets.IG_SCRAPE_USER_ID }}

@@ -93,7 +93,8 @@ export default function RefreshProfileButton({ handle }: { handle: string }) {
       const res = await fetch("/api/profiles/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ handle }),
+        // force: Refresh is an explicit user action — bypass the freshness guard.
+        body: JSON.stringify({ handle, force: true }),
       });
       const data = await readJsonSafe(res);
       if (!res.ok) {
