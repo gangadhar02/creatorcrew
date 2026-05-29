@@ -25,11 +25,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getWorkspaceContext } from "@/lib/workspace";
-import { runProfileAnalysis } from "@/lib/profile-analyzer";
+import { runProfileAnalysis, DEFAULT_PROFILE_CAP } from "@/lib/profile-analyzer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+/** Skip re-analyzing a profile synced within this many days (unless force=true).
+ *  Set PROFILE_FRESH_DAYS=0 to disable the freshness guard entirely. */
+const FRESH_DAYS = Number(process.env.PROFILE_FRESH_DAYS ?? 7);
 
 const GITHUB_OWNER = process.env.GITHUB_REPO_OWNER || "gangadhar02";
 const GITHUB_REPO = process.env.GITHUB_REPO_NAME || "drafts";
@@ -88,20 +92,22 @@ export async function POST(request: NextRequest) {
 }
 
 async function handlePost(request: NextRequest) {
-  let parsedBody: { handle?: string; maxPosts?: number };
+  let parsedBody: { handle?: string; maxPosts?: number; force?: boolean };
   try {
     parsedBody = (await request.json()) as {
       handle: string;
       maxPosts?: number;
+      force?: boolean;
     };
   } catch {
     return NextResponse.json(
-      { error: "Body must be JSON: { handle: string, maxPosts?: number }" },
+      { error: "Body must be JSON: { handle: string, maxPosts?: number, force?: boolean }" },
       { status: 400 }
     );
   }
   const handleRaw = parsedBody.handle;
   const maxPosts = parsedBody.maxPosts;
+  const force = parsedBody.force === true;
   if (!handleRaw) {
     return NextResponse.json({ error: "handle required" }, { status: 400 });
   }
@@ -112,8 +118,37 @@ async function handlePost(request: NextRequest) {
   }
 
   const handle = cleanHandle(handleRaw);
-  const cap = Math.max(1, Math.min(maxPosts ?? 90, 500));
+  const cap = Math.max(1, Math.min(maxPosts ?? DEFAULT_PROFILE_CAP, 500));
   const sb = getSupabase();
+
+  // Freshness guard — skip a re-analysis if this profile was synced recently
+  // and the caller didn't force it. Checked BEFORE creating a job or dispatching
+  // to GitHub Actions so a fresh profile costs nothing (no Apify, no CI run).
+  if (!force && FRESH_DAYS > 0) {
+    const existing = await sb
+      .from("profiles")
+      .select("id, last_synced_at, sync_status")
+      .eq("ig_handle", handle)
+      .maybeSingle();
+    const row = existing.data as
+      | { id: string; last_synced_at: string | null; sync_status: string | null }
+      | null;
+    if (row?.last_synced_at && row.sync_status !== "failed") {
+      const ageMs = Date.now() - new Date(row.last_synced_at).getTime();
+      if (ageMs < FRESH_DAYS * 86_400_000) {
+        const ageHours = Math.round(ageMs / 3_600_000);
+        return NextResponse.json({
+          mode: "skipped",
+          skipped: true,
+          job_id: null,
+          profile_id: row.id,
+          handle,
+          last_synced_at: row.last_synced_at,
+          reason: `Analyzed ${ageHours}h ago (within ${FRESH_DAYS}-day freshness window). Use Refresh to force a re-fetch.`,
+        });
+      }
+    }
+  }
 
   // Create the job row up front so we always have something to poll.
   const jobIns = await sb

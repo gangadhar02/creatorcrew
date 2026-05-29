@@ -21,7 +21,7 @@ type JobStatus = {
 export default function AnalyzeProfileForm() {
   const router = useRouter();
   const [handle, setHandle] = useState("");
-  const [maxPosts, setMaxPosts] = useState<number>(90);
+  const [maxPosts, setMaxPosts] = useState<number>(40);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [job, setJob] = useState<JobStatus | null>(null);
@@ -85,7 +85,7 @@ export default function AnalyzeProfileForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           handle: handle.trim(),
-          maxPosts: Math.max(1, Math.min(500, maxPosts || 90)),
+          maxPosts: Math.max(1, Math.min(500, maxPosts || 40)),
         }),
       });
       // Some failure modes (Vercel 502/504, framework error pages)
@@ -106,7 +106,9 @@ export default function AnalyzeProfileForm() {
       // the polling effect kicks in.
       // INLINE MODE returns the full result fields — we synthesize a
       // "completed" job so the same render path applies.
-      if (data.mode === "inline") {
+      // Inline = ran now; skipped = already fresh (freshness guard). Either way
+      // the profile exists — just navigate to it.
+      if (data.mode === "inline" || data.mode === "skipped") {
         router.push(`/profiles/${data.handle}`);
         router.refresh();
         return;
@@ -160,8 +162,8 @@ export default function AnalyzeProfileForm() {
             value={maxPosts}
             onChange={(e) => {
               const raw = e.target.value;
-              const n = parseInt(raw || "90", 10);
-              setMaxPosts(Number.isFinite(n) ? n : 90);
+              const n = parseInt(raw || "40", 10);
+              setMaxPosts(Number.isFinite(n) ? n : 40);
             }}
             disabled={busy}
             className="w-14 bg-transparent py-1.5 text-sm tabular-nums focus:outline-none"
@@ -223,9 +225,10 @@ export default function AnalyzeProfileForm() {
 
       {!job && !submitting && (
         <p className="mt-2 text-xs text-[var(--muted-foreground)]">
-          Range: 1–500 posts. Default 90. Higher = more data but more IG API load.
-          Production runs go through GitHub Actions (~1–2 min); local dev runs
-          inline.
+          Range: 1–500 posts. Default 40. Higher = more data but higher fetch
+          cost. Recently-analyzed profiles are reused automatically — use Refresh
+          to force a re-fetch. Production runs go through GitHub Actions (~1–2
+          min); local dev runs inline.
         </p>
       )}
       {error && (

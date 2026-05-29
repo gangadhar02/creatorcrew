@@ -19,11 +19,27 @@ import {
   computeProfileStats,
   computeEngagementRate,
   computeOutlier,
+  type IGProfile,
+  type IGMediaItem,
 } from "./instagram";
+import {
+  isGraphApiConfigured,
+  fetchProfileAndPostsGraph,
+  IGGraphUnsupported,
+} from "./instagram-graph";
+import {
+  isApifyConfigured,
+  fetchProfileAndPostsApify,
+} from "./instagram-apify";
 import {
   upsertCreator,
   upsertCreatorPost,
 } from "./dual-write";
+
+/** Default number of recent posts to fetch. 40 is enough for typical/outlier
+ *  stats to stabilize while keeping per-analysis cost low (Apify bills per
+ *  result). Override per-request via the `cap` option / `maxPosts` body field. */
+export const DEFAULT_PROFILE_CAP = 40;
 
 export type ProfileAnalysisResult = {
   profileId: string;
@@ -38,13 +54,82 @@ function cleanHandle(input: string): string {
   return input.replace(/^@/, "").trim().toLowerCase();
 }
 
+type FetchSource = "apify" | "graph" | "cookie";
+
+/**
+ * Decide which fetch path to use, controlled by IG_FETCH_MODE:
+ *   "apify"  → always use the Apify Instagram Scraper
+ *   "graph"  → always use the official Business Discovery API
+ *   "cookie" → always use the direct cookie scraper
+ *   "auto"   → prefer Apify, then Graph, then cookie — based on what's
+ *              configured (default)
+ */
+function fetchMode(): FetchSource | "auto" {
+  const m = process.env.IG_FETCH_MODE?.trim().toLowerCase();
+  if (m === "apify" || m === "graph" || m === "cookie") return m;
+  return "auto";
+}
+
+async function fetchViaCookie(
+  handle: string,
+  cap: number
+): Promise<{ profile: IGProfile; items: IGMediaItem[]; source: FetchSource }> {
+  const profile = await fetchProfile(handle);
+  const items = await fetchUserPosts(profile.id, { maxPosts: cap });
+  return { profile, items, source: "cookie" };
+}
+
+/**
+ * Fetch profile + recent posts via Apify / Graph / cookies, returning the
+ * unified shapes the rest of the analyzer consumes.
+ *
+ * In "auto" mode the backends are tried in preference order (Apify → Graph →
+ * cookie) and any failure falls back to the next available one. A backend
+ * forced via IG_FETCH_MODE is used as-is with no fallback — except Graph, where
+ * an IGGraphUnsupported target (personal/private account) still throws so the
+ * caller sees the real reason.
+ */
+async function fetchProfileAndPosts(
+  handle: string,
+  cap: number
+): Promise<{ profile: IGProfile; items: IGMediaItem[]; source: FetchSource }> {
+  const mode = fetchMode();
+
+  // Forced single backend (no fallback).
+  if (mode === "apify") return { ...(await fetchProfileAndPostsApify(handle, cap)), source: "apify" };
+  if (mode === "graph") return { ...(await fetchProfileAndPostsGraph(handle, cap)), source: "graph" };
+  if (mode === "cookie") return fetchViaCookie(handle, cap);
+
+  // auto: Apify → Graph → cookie, falling back on error.
+  if (isApifyConfigured()) {
+    try {
+      return { ...(await fetchProfileAndPostsApify(handle, cap)), source: "apify" };
+    } catch (e) {
+      console.warn(
+        `[profile-analyzer] Apify failed for @${handle} (${(e as Error).message}); trying next backend.`
+      );
+    }
+  }
+  if (isGraphApiConfigured()) {
+    try {
+      return { ...(await fetchProfileAndPostsGraph(handle, cap)), source: "graph" };
+    } catch (e) {
+      const why = e instanceof IGGraphUnsupported ? "unsupported target" : (e as Error).message;
+      console.warn(
+        `[profile-analyzer] Graph failed for @${handle} (${why}); falling back to cookie scraper.`
+      );
+    }
+  }
+  return fetchViaCookie(handle, cap);
+}
+
 export async function runProfileAnalysis(opts: {
   workspaceId: string;
   handle: string;
   cap?: number;
 }): Promise<ProfileAnalysisResult> {
   const handle = cleanHandle(opts.handle);
-  const cap = Math.max(1, Math.min(opts.cap ?? 90, 500));
+  const cap = Math.max(1, Math.min(opts.cap ?? DEFAULT_PROFILE_CAP, 500));
   const sb = getSupabase();
 
   // Mark / create profile row as syncing.
@@ -73,11 +158,8 @@ export async function runProfileAnalysis(opts: {
   }
 
   try {
-    // 1. Profile metadata
-    const profile = await fetchProfile(handle);
-
-    // 2. Recent posts
-    const items = await fetchUserPosts(profile.id, { maxPosts: cap });
+    // 1 + 2. Profile metadata + recent posts (Graph API or cookie scraper).
+    const { profile, items } = await fetchProfileAndPosts(handle, cap);
     const normalized = items
       .map(normalizePost)
       .filter((p): p is NonNullable<typeof p> => p !== null);
