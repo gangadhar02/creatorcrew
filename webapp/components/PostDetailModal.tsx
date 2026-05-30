@@ -15,6 +15,7 @@ import {
   BadgeCheck,
   ChevronDown,
   ChevronUp,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,10 @@ export default function PostDetailModal({
   const [saveOpen, setSaveOpen] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [hideSeen, setHideSeen] = useState(false);
+  // Load the live IG embed only on click — keeps the modal instant, never
+  // blank, and avoids hammering Instagram's embed endpoint (which rate-limits
+  // and then serves a blank/login page).
+  const [playing, setPlaying] = useState(false);
   const [enrichment, setEnrichment] = useState<AiOverview | null>(
     normalizeAiOverview(post.ai_overview)
   );
@@ -86,10 +91,12 @@ export default function PostDetailModal({
       ? `https://www.instagram.com/${isReel ? "reel" : "p"}/${igCode}/embed`
       : null;
 
-  // Mark seen when modal opens.
+  // Mark seen when modal opens; reset the player when it closes.
   useEffect(() => {
     if (open) {
       fetch(`/api/post-seen/${post.id}`, { method: "POST" }).catch(() => {});
+    } else {
+      setPlaying(false);
     }
   }, [open, post.id]);
 
@@ -245,12 +252,12 @@ export default function PostDetailModal({
           className="flex flex-col overflow-y-auto"
           style={{ maxHeight: "calc(90vh - 49px)" }}
         >
-          {/* Media — playable IG embed (reel/carousel), thumbnail fallback.
-              Light backdrop + ~540px (IG's natural max) so the embed fills the
-              width cleanly instead of sitting in black letterbox bars; the
-              height crops the redundant IG footer (likes / "view more"). */}
+          {/* Media — thumbnail poster by default; click loads the live IG embed
+              (reel plays / carousel swipes) inline. Loading on demand keeps the
+              modal instant, never blank, and avoids IG embed rate-limiting.
+              Light backdrop + ~540px (IG's natural max) so it fills the width. */}
           <div className="bg-muted/40 px-4 py-4">
-            {embedUrl ? (
+            {embedUrl && playing ? (
               <iframe
                 key={embedUrl}
                 src={embedUrl}
@@ -261,6 +268,29 @@ export default function PostDetailModal({
                 className="mx-auto block w-full max-w-[540px] rounded-xl border bg-white"
                 style={{ height: 660 }}
               />
+            ) : embedUrl ? (
+              <button
+                type="button"
+                onClick={() => setPlaying(true)}
+                aria-label="Play"
+                className="group relative mx-auto block w-full max-w-[540px] overflow-hidden rounded-xl border bg-black"
+              >
+                {thumbnail ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={thumbnail}
+                    alt=""
+                    className="max-h-[660px] w-full object-cover"
+                  />
+                ) : (
+                  <div className="aspect-[4/5] w-full bg-muted" />
+                )}
+                <span className="absolute inset-0 grid place-items-center">
+                  <span className="grid h-14 w-14 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm transition group-hover:scale-105 group-hover:bg-black/70">
+                    <Play className="h-6 w-6 translate-x-0.5 fill-current" />
+                  </span>
+                </span>
+              </button>
             ) : thumbnail ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
