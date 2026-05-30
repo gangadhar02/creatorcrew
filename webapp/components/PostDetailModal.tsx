@@ -138,7 +138,7 @@ export default function PostDetailModal({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="max-w-xl gap-0 overflow-hidden p-0"
+        className="gap-0 overflow-hidden p-0 sm:max-w-[600px]"
         style={{ maxHeight: "90vh" }}
       >
         <DialogTitle className="sr-only">
@@ -146,16 +146,16 @@ export default function PostDetailModal({
         </DialogTitle>
 
         {/* Top bar */}
-        <div className="flex items-center gap-1 border-b px-3 py-2">
-          <Badge className={cn("text-white text-[10px]", platformColor)}>
-            {post.platform}
-          </Badge>
-          {post.taxonomy_label && (
-            <span className="ml-1 truncate text-[11px] text-muted-foreground">
-              {post.taxonomy_label}
-            </span>
-          )}
-          <div className="flex-1" />
+        <div className="flex items-center gap-1 border-b px-4 py-2.5">
+          <span
+            className={cn(
+              "mr-2 h-2 w-2 shrink-0 rounded-full",
+              platformColor
+            )}
+          />
+          <span className="min-w-0 flex-1 truncate text-sm font-medium">
+            {post.title_or_caption || post.taxonomy_label || "Post"}
+          </span>
           <div className="relative">
             <Tooltip>
               <TooltipTrigger
@@ -245,8 +245,11 @@ export default function PostDetailModal({
           className="flex flex-col overflow-y-auto"
           style={{ maxHeight: "calc(90vh - 49px)" }}
         >
-          {/* Media — playable IG embed (reel/carousel), thumbnail fallback */}
-          <div className="relative bg-black">
+          {/* Media — playable IG embed (reel/carousel), thumbnail fallback.
+              Light backdrop + ~540px (IG's natural max) so the embed fills the
+              width cleanly instead of sitting in black letterbox bars; the
+              height crops the redundant IG footer (likes / "view more"). */}
+          <div className="bg-muted/40 px-4 py-4">
             {embedUrl ? (
               <iframe
                 key={embedUrl}
@@ -255,29 +258,21 @@ export default function PostDetailModal({
                 loading="lazy"
                 allowFullScreen
                 scrolling="no"
-                className="mx-auto block w-full max-w-[400px] border-0 bg-white"
-                style={{ height: 640 }}
+                className="mx-auto block w-full max-w-[540px] rounded-xl border bg-white"
+                style={{ height: 660 }}
               />
             ) : thumbnail ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={thumbnail}
                 alt=""
-                className="mx-auto max-h-[70vh] w-auto object-contain"
+                className="mx-auto max-h-[70vh] w-auto rounded-xl object-contain"
               />
             ) : null}
-            {post.media_type && (
-              <Badge
-                variant="secondary"
-                className="absolute left-2 top-2 bg-black/60 text-white"
-              >
-                {post.media_type}
-              </Badge>
-            )}
           </div>
 
           {/* Creator row */}
-          <div className="flex items-center gap-3 border-b px-4 py-3">
+          <div className="flex items-center gap-3 border-b px-5 py-4">
             <Avatar className="h-9 w-9">
               <AvatarImage
                 src={
@@ -324,7 +319,7 @@ export default function PostDetailModal({
           </div>
 
           {/* Stats pill */}
-          <div className="border-b px-4 py-3">
+          <div className="border-b px-5 py-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border bg-card px-3 py-2 text-xs tabular-nums">
               {post.outlier_multiplier !== null &&
                 post.outlier_multiplier !== undefined && (
@@ -370,7 +365,7 @@ export default function PostDetailModal({
 
             {/* Caption */}
             {post.title_or_caption && (
-              <div className="border-b px-4 py-3">
+              <div className="border-b px-5 py-4">
                 <div className="mb-1 flex items-center justify-between">
                   <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                     Caption
@@ -390,7 +385,7 @@ export default function PostDetailModal({
 
             {/* AI tags */}
             {post.ai_tags && post.ai_tags.length > 0 && (
-              <div className="border-b px-4 py-3">
+              <div className="border-b px-5 py-4">
                 <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                   Tags
                 </div>
@@ -410,7 +405,7 @@ export default function PostDetailModal({
 
             {/* AI description */}
             {post.ai_description && (
-              <div className="border-b px-4 py-3">
+              <div className="border-b px-5 py-4">
                 <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                   Summary
                 </div>
@@ -419,7 +414,7 @@ export default function PostDetailModal({
             )}
 
             {/* Vision Analysis / AI overview blocks */}
-            <div className="border-b px-4 py-3">
+            <div className="border-b px-5 py-4">
               <div className="mb-2 flex items-center justify-between">
                 <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                   Vision Analysis
@@ -447,7 +442,7 @@ export default function PostDetailModal({
 
             {/* Transcript collapsible */}
             {post.transcript && (
-              <div className="border-b px-4 py-3">
+              <div className="border-b px-5 py-4">
                 <button
                   onClick={() => setTranscriptOpen((v) => !v)}
                   className="flex w-full items-center justify-between text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
