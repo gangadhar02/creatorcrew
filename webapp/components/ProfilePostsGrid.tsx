@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { clsx } from "clsx";
 import MarkdownView from "./MarkdownView";
 import { igImg } from "@/lib/proxy-image";
@@ -185,7 +186,18 @@ function PostModal({
 
   const isReelLike = post.type === "Reel" || post.type === "IGTV";
 
-  return (
+  // Instagram embed — plays the reel / swipes the carousel inline (same as the
+  // Discover modal). Resolve the shortcode from `code` or the post URL.
+  const igCode =
+    post.code || post.url.match(/\/(?:p|reel|reels|tv)\/([^/?#]+)/)?.[1] || null;
+  const embedUrl = igCode
+    ? `https://www.instagram.com/${post.type === "Reel" ? "reel" : "p"}/${igCode}/embed`
+    : null;
+
+  // Portal to <body> so the fixed overlay centers on the viewport instead of
+  // anchoring to a transformed ancestor (the page-entry animation), which made
+  // it open partway down the page.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
       onClick={onClose}
@@ -217,7 +229,18 @@ function PostModal({
         </div>
 
         <div className="bg-black p-4 flex items-center justify-center">
-          {post.thumbnail_url ? (
+          {embedUrl ? (
+            <iframe
+              key={embedUrl}
+              src={embedUrl}
+              title="Instagram post"
+              loading="lazy"
+              allowFullScreen
+              scrolling="no"
+              className="block w-full max-w-[400px] rounded border-0 bg-white"
+              style={{ height: 600 }}
+            />
+          ) : post.thumbnail_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={igImg(post.thumbnail_url)}
@@ -367,7 +390,8 @@ function PostModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
