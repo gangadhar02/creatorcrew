@@ -9,7 +9,6 @@ import {
   Home,
   Compass,
   MessageCircle,
-  Columns3,
   LayoutGrid,
   MessageSquare,
   RefreshCw,
@@ -21,6 +20,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   LayoutTemplate,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,6 @@ const TOP_NAV: {
   { href: "/", label: "Home", icon: Home, badge: "onboarding" },
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/chat", label: "Chat", icon: MessageCircle },
-  { href: "/workspace", label: "Workspace", icon: Columns3 },
 ];
 
 const TOOLS_NAV: {
@@ -80,11 +80,29 @@ export default function Sidebar({
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   const [todayChats, setTodayChats] = useState(recentChats);
 
   useEffect(() => {
     setTodayChats(recentChats);
   }, [recentChats]);
+
+  // Reflect the theme the pre-hydration script already applied to <html>.
+  // Read after mount so SSR and first client render agree (no hydration warning).
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  function toggleTheme() {
+    const next = !document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", next);
+    try {
+      localStorage.setItem("theme", next ? "dark" : "light");
+    } catch {
+      // ignore storage failures (private mode etc.)
+    }
+    setIsDark(next);
+  }
 
   useEffect(() => {
     setCollapsed(isSidebarCollapsed());
@@ -226,7 +244,7 @@ export default function Sidebar({
 
         {/* Workspace boards */}
         <div className={cn("sidebar-block pt-3 pb-2", collapsed ? "" : "px-3")}>
-          <SectionLabel collapsed={collapsed}>Workspace</SectionLabel>
+          <SectionLabel collapsed={collapsed}>Boards</SectionLabel>
           <div className="space-y-0.5">
             {boards.length === 0 ? (
               !collapsed && (
@@ -341,6 +359,40 @@ export default function Sidebar({
             />
             <TooltipContent side="right">
               {collapsed ? "Expand sidebar (⌘/)" : "Collapse sidebar (⌘/)"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Theme toggle */}
+        <div className={cn("sidebar-block pb-1", collapsed ? "" : "px-3")}>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size={collapsed ? "icon-sm" : "sm"}
+                  onClick={toggleTheme}
+                  className={cn(
+                    "sidebar-icon-btn text-muted-foreground hover:text-foreground",
+                    collapsed ? "" : "w-full justify-start gap-2"
+                  )}
+                  aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+                >
+                  {isDark ? (
+                    <Sun className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <Moon className="h-4 w-4 shrink-0" />
+                  )}
+                  {!collapsed && (
+                    <span className="sidebar-label whitespace-nowrap">
+                      {isDark ? "Light mode" : "Dark mode"}
+                    </span>
+                  )}
+                </Button>
+              }
+            />
+            <TooltipContent side="right">
+              {isDark ? "Switch to light mode" : "Switch to dark mode"}
             </TooltipContent>
           </Tooltip>
         </div>

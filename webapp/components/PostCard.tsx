@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Heart,
@@ -9,12 +8,10 @@ import {
   Eye,
   Zap,
   Bookmark,
-  Columns3,
   BadgeCheck,
 } from "lucide-react";
 import type { PostWithCreator } from "@/lib/discover-types";
 import { igImg, mediaImg } from "@/lib/proxy-image";
-import { openInWorkspaceUrl } from "@/lib/panes";
 import {
   postCardVariant,
   thumbnailLayout,
@@ -94,7 +91,6 @@ export default function PostCard({
 
   const variant = postCardVariant(post);
   const layout = thumbnailLayout(post);
-  const c = post.creator;
   const isHighOutlier =
     post.outlier_multiplier !== null && post.outlier_multiplier >= 2;
   const platformMark = PLATFORM_MARK[variant];
@@ -144,10 +140,19 @@ export default function PostCard({
           }}
         />
 
-        <CardToolbar post={post} variant={variant} onBoost={() => {
+        <CardToolbar
+          variant={variant}
+          onBoost={() => {
             setBoostOpen((v) => !v);
             setSaveOpen(false);
-          }} />
+          }}
+          onAddToBoard={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setSaveOpen((v) => !v);
+            setBoostOpen(false);
+          }}
+        />
 
         {boostOpen && (
           <BoostMenu postId={post.id} onClose={() => setBoostOpen(false)} />
@@ -170,20 +175,20 @@ export default function PostCard({
 }
 
 function CardToolbar({
-  post,
   variant,
   onBoost,
+  onAddToBoard,
 }: {
-  post: PostWithCreator;
   variant: PostCardVariant;
   onBoost: () => void;
+  onAddToBoard: (e: React.MouseEvent) => void;
 }) {
   const compact = variant === "youtube" || variant === "substack";
 
   return (
     <div
       className={cn(
-        "absolute z-10 flex items-center gap-0.5",
+        "absolute z-10 flex items-center gap-1",
         compact ? "right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity" : "right-2 top-2"
       )}
     >
@@ -192,9 +197,9 @@ function CardToolbar({
           render={
             <button
               onClick={onBoost}
-              className="rounded p-1 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors bg-card/80 backdrop-blur-sm"
+              className="rounded-md p-1.5 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors bg-card/80 backdrop-blur-sm"
             >
-              <Zap className="h-3.5 w-3.5" />
+              <Zap className="h-4 w-4" />
             </button>
           }
         />
@@ -203,16 +208,15 @@ function CardToolbar({
       <Tooltip>
         <TooltipTrigger
           render={
-            <Link
-              href={openInWorkspaceUrl({ kind: "post", id: post.id })}
-              onClick={(e) => e.stopPropagation()}
-              className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors bg-card/80 backdrop-blur-sm"
+            <button
+              onClick={onAddToBoard}
+              className="rounded-md p-1.5 text-muted-foreground hover:text-sky-500 hover:bg-sky-500/10 transition-colors bg-card/80 backdrop-blur-sm"
             >
-              <Columns3 className="h-3.5 w-3.5" />
-            </Link>
+              <Bookmark className="h-4 w-4" />
+            </button>
           }
         />
-        <TooltipContent>Open in workspace pane</TooltipContent>
+        <TooltipContent>Add to board</TooltipContent>
       </Tooltip>
     </div>
   );

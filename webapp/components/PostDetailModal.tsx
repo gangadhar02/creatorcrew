@@ -24,7 +24,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { igImg, mediaImg } from "@/lib/proxy-image";
-import { thumbnailLayout } from "@/lib/post-card-layout";
 import type { PostWithCreator } from "@/lib/discover-types";
 import type { AiOverview, AiOverviewBlock } from "@/lib/types-enrichment";
 import MarkdownView from "./MarkdownView";
@@ -71,7 +70,21 @@ export default function PostDetailModal({
   const thumbnail = post.thumbnail_url
     ? mediaImg(post.thumbnail_url, post.platform)
     : null;
-  const mediaLayout = thumbnailLayout(post);
+
+  // Instagram embed — plays the reel / swipes the carousel inline, using IG's
+  // own embed iframe (same approach as Eden). Falls back to the thumbnail for
+  // non-IG platforms or when we can't resolve a shortcode.
+  const igCode = (() => {
+    if (post.code) return post.code;
+    const m = post.url?.match(/\/(?:p|reel|reels|tv)\/([^/?#]+)/);
+    return m ? m[1] : null;
+  })();
+  const isReel =
+    post.media_type === "Reel" || post.media_format === "short_video";
+  const embedUrl =
+    post.platform === "instagram" && igCode
+      ? `https://www.instagram.com/${isReel ? "reel" : "p"}/${igCode}/embed`
+      : null;
 
   // Mark seen when modal opens.
   useEffect(() => {
@@ -125,7 +138,7 @@ export default function PostDetailModal({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="max-w-3xl gap-0 overflow-hidden p-0"
+        className="max-w-xl gap-0 overflow-hidden p-0"
         style={{ maxHeight: "90vh" }}
       >
         <DialogTitle className="sr-only">
@@ -227,27 +240,32 @@ export default function PostDetailModal({
           </button>
         </div>
 
-        {/* Body — scrollable */}
-        <div className="grid gap-0 md:grid-cols-2 overflow-hidden">
-          {/* Media column */}
-          <div
-            className={cn(
-              "relative bg-muted md:max-h-[78vh]",
-              mediaLayout.aspectClass ?? "md:aspect-auto"
-            )}
-          >
-            {thumbnail && (
+        {/* Body — single column, Eden-style */}
+        <div
+          className="flex flex-col overflow-y-auto"
+          style={{ maxHeight: "calc(90vh - 49px)" }}
+        >
+          {/* Media — playable IG embed (reel/carousel), thumbnail fallback */}
+          <div className="relative bg-black">
+            {embedUrl ? (
+              <iframe
+                key={embedUrl}
+                src={embedUrl}
+                title="Instagram post"
+                loading="lazy"
+                allowFullScreen
+                scrolling="no"
+                className="mx-auto block w-full max-w-[400px] border-0 bg-white"
+                style={{ height: 640 }}
+              />
+            ) : thumbnail ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={thumbnail}
                 alt=""
-                className={cn(
-                  mediaLayout.aspectClass
-                    ? "h-full w-full object-cover"
-                    : "mx-auto w-full h-auto max-h-[78vh] object-contain"
-                )}
+                className="mx-auto max-h-[70vh] w-auto object-contain"
               />
-            )}
+            ) : null}
             {post.media_type && (
               <Badge
                 variant="secondary"
@@ -258,81 +276,97 @@ export default function PostDetailModal({
             )}
           </div>
 
-          {/* Info column */}
-          <div className="flex flex-col overflow-y-auto md:max-h-[78vh]">
-            {/* Creator header */}
-            <div className="flex items-center gap-3 border-b px-4 py-3">
-              <Avatar className="h-9 w-9">
-                <AvatarImage
-                  src={
-                    c.avatar_url
-                      ? /\/social-mirror\//.test(c.avatar_url)
-                        ? c.avatar_url
-                        : post.platform === "instagram"
-                          ? igImg(c.avatar_url)
-                          : c.avatar_url
-                      : undefined
-                  }
-                  alt=""
-                />
-                <AvatarFallback>
-                  {c.handle.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1 text-sm font-medium">
-                  <span className="truncate">
-                    {c.display_name || `@${c.handle}`}
-                  </span>
-                  {c.is_verified && (
-                    <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-sky-500" />
-                  )}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  @{c.handle}
-                  {c.follower_count
-                    ? ` · ${fmtNum(c.follower_count)} followers`
-                    : ""}
-                </div>
-              </div>
-              <Link
-                href={`/creators/${post.platform}/${c.handle}`}
-                className="rounded-md border bg-card px-2 py-1 text-xs hover:border-primary/40"
-                onClick={onClose}
-              >
-                View profile
-              </Link>
-            </div>
-
-            {/* Stats row */}
-            <div className="flex items-center justify-between border-b px-4 py-2 text-xs tabular-nums">
-              <div className="flex items-center gap-3">
-                {post.outlier_multiplier !== null &&
-                  post.outlier_multiplier !== undefined &&
-                  post.outlier_multiplier >= 2 && (
-                    <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-400/20 dark:text-amber-300 px-1.5 py-0 font-semibold">
-                      {post.outlier_multiplier.toFixed(1)}× outlier
-                    </Badge>
-                  )}
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <Heart className="h-3 w-3" /> {fmtNum(post.like_count)}
+          {/* Creator row */}
+          <div className="flex items-center gap-3 border-b px-4 py-3">
+            <Avatar className="h-9 w-9">
+              <AvatarImage
+                src={
+                  c.avatar_url
+                    ? /\/social-mirror\//.test(c.avatar_url)
+                      ? c.avatar_url
+                      : post.platform === "instagram"
+                        ? igImg(c.avatar_url)
+                        : c.avatar_url
+                    : undefined
+                }
+                alt=""
+              />
+              <AvatarFallback>
+                {c.handle.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1 text-sm font-medium">
+                <span className="truncate">
+                  {c.display_name || `@${c.handle}`}
                 </span>
-                <span className="flex items-center gap-1 text-muted-foreground">
-                  <MessageSquare className="h-3 w-3" />{" "}
-                  {fmtNum(post.comment_count)}
-                </span>
-                {post.view_count > 0 && (
-                  <span className="flex items-center gap-1 text-muted-foreground">
-                    <Eye className="h-3 w-3" /> {fmtNum(post.view_count)}
-                  </span>
+                {c.is_verified && (
+                  <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-sky-500" />
                 )}
               </div>
-              {post.published_at && (
-                <span className="text-muted-foreground">
-                  {new Date(post.published_at).toLocaleDateString()}
+              <div className="truncate text-[11px] text-muted-foreground">
+                @{c.handle}
+                {post.published_at
+                  ? ` · ${new Date(post.published_at).toLocaleString(undefined, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}`
+                  : ""}
+              </div>
+            </div>
+            <Link
+              href={`/creators/${post.platform}/${c.handle}`}
+              className="shrink-0 rounded-md border bg-card px-2 py-1 text-xs hover:border-primary/40"
+              onClick={onClose}
+            >
+              View profile
+            </Link>
+          </div>
+
+          {/* Stats pill */}
+          <div className="border-b px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border bg-card px-3 py-2 text-xs tabular-nums">
+              {post.outlier_multiplier !== null &&
+                post.outlier_multiplier !== undefined && (
+                  <span
+                    className={cn(
+                      "flex items-center gap-1",
+                      post.outlier_multiplier >= 2
+                        ? "font-semibold text-amber-600 dark:text-amber-400"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <Zap className="h-3 w-3" />
+                    {post.outlier_multiplier.toFixed(2)}×
+                    <span className="text-muted-foreground">vs views</span>
+                  </span>
+                )}
+              {post.view_count > 0 && (
+                <span className="flex items-center gap-1">
+                  <Eye className="h-3 w-3 text-muted-foreground" />
+                  {fmtNum(post.view_count)}
+                  <span className="text-muted-foreground">views</span>
                 </span>
               )}
+              <span className="flex items-center gap-1">
+                <Heart className="h-3 w-3 text-muted-foreground" />
+                {fmtNum(post.like_count)}
+                <span className="text-muted-foreground">likes</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                {fmtNum(post.comment_count)}
+                <span className="text-muted-foreground">comments</span>
+              </span>
+              {post.engagement_rate !== null &&
+                post.engagement_rate !== undefined && (
+                  <span className="flex items-center gap-1">
+                    {post.engagement_rate.toFixed(2)}%
+                    <span className="text-muted-foreground">eng. rate</span>
+                  </span>
+                )}
             </div>
+          </div>
 
             {/* Caption */}
             {post.title_or_caption && (
@@ -444,7 +478,6 @@ export default function PostDetailModal({
                 </div>
               </div>
             )}
-          </div>
         </div>
       </DialogContent>
     </Dialog>
