@@ -2,8 +2,12 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
+import { toast } from "sonner";
+import { MessageCircle, Bookmark } from "lucide-react";
 import MarkdownView from "./MarkdownView";
+import SaveToBoardMenu from "./SaveToBoardMenu";
 import { igImg } from "@/lib/proxy-image";
 
 export type ProfilePost = {
@@ -23,6 +27,8 @@ export type ProfilePost = {
   outlier_multiplier: number | null;
   transcript: string | null;
   vision_analysis_md: string | null;
+  /** Dual-written creator_posts id — powers Chat / Add-to-board. */
+  creator_post_id?: string | null;
 };
 
 function fmtNum(n: number | null | undefined): string {
@@ -58,63 +64,7 @@ export default function ProfilePostsGrid({ posts }: { posts: ProfilePost[] }) {
     <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {posts.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setOpen(p)}
-            className="group block overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)] text-left transition-colors hover:border-[var(--primary)]"
-          >
-            <div className="relative aspect-[4/5] bg-zinc-200 dark:bg-zinc-800">
-              {p.thumbnail_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={igImg(p.thumbnail_url)}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : null}
-              <div className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                {p.type}
-              </div>
-              {p.outlier_multiplier !== null && p.outlier_multiplier >= 2 && (
-                <div className="absolute right-2 top-2 rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-semibold text-black">
-                  {p.outlier_multiplier.toFixed(2)}×
-                </div>
-              )}
-              <div className="absolute right-2 bottom-2 flex gap-1">
-                {p.transcript && (
-                  <span
-                    title="Has transcript"
-                    className="rounded bg-emerald-500/90 px-1 py-0.5 text-[9px] font-semibold text-white"
-                  >
-                    T
-                  </span>
-                )}
-                {p.vision_analysis_md && (
-                  <span
-                    title="Has vision analysis"
-                    className="rounded bg-sky-500/90 px-1 py-0.5 text-[9px] font-semibold text-white"
-                  >
-                    V
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="p-2">
-              <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)] tabular-nums">
-                <div className="flex items-center gap-2">
-                  <span title="likes">♡ {fmtNum(p.like_count)}</span>
-                  <span title="comments">💬 {fmtNum(p.comment_count)}</span>
-                  {p.view_count > 0 && (
-                    <span title="views">▶ {fmtNum(p.view_count)}</span>
-                  )}
-                </div>
-                <span>{fmtAge(p.taken_at)}</span>
-              </div>
-              <div className="mt-1 line-clamp-2 text-xs text-[var(--foreground)]">
-                {p.caption || ""}
-              </div>
-            </div>
-          </button>
+          <ProfileCard key={p.id} post={p} onOpen={() => setOpen(p)} />
         ))}
       </div>
 
@@ -128,6 +78,129 @@ export default function ProfilePostsGrid({ posts }: { posts: ProfilePost[] }) {
         />
       )}
     </>
+  );
+}
+
+function ProfileCard({
+  post,
+  onOpen,
+}: {
+  post: ProfilePost;
+  onOpen: () => void;
+}) {
+  const router = useRouter();
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
+  const cpId = post.creator_post_id ?? null;
+
+  async function openChat() {
+    if (!cpId || chatBusy) return;
+    setChatBusy(true);
+    const t = toast.loading("Starting chat…");
+    try {
+      const res = await fetch("/api/boost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: cpId, chat: true }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.chat_id) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      toast.dismiss(t);
+      router.push(`/chats/${data.chat_id}`);
+    } catch (e) {
+      toast.error("Couldn't start chat", { id: t, description: String(e) });
+      setChatBusy(false);
+    }
+  }
+
+  return (
+    <div className="group relative overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)] transition-colors hover:border-[var(--primary)]">
+      <button onClick={onOpen} className="block w-full text-left">
+        <div className="relative aspect-[4/5] bg-zinc-200 dark:bg-zinc-800">
+          {post.thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={igImg(post.thumbnail_url)}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : null}
+          <div className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+            {post.type}
+          </div>
+          <div className="absolute right-2 bottom-2 flex gap-1">
+            {post.transcript && (
+              <span
+                title="Has transcript"
+                className="rounded bg-emerald-500/90 px-1 py-0.5 text-[9px] font-semibold text-white"
+              >
+                T
+              </span>
+            )}
+            {post.vision_analysis_md && (
+              <span
+                title="Has vision analysis"
+                className="rounded bg-sky-500/90 px-1 py-0.5 text-[9px] font-semibold text-white"
+              >
+                V
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="p-2">
+          <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)] tabular-nums">
+            <div className="flex items-center gap-2">
+              <span title="likes">♡ {fmtNum(post.like_count)}</span>
+              <span title="comments">💬 {fmtNum(post.comment_count)}</span>
+              {post.view_count > 0 && (
+                <span title="views">▶ {fmtNum(post.view_count)}</span>
+              )}
+            </div>
+            <span>{fmtAge(post.taken_at)}</span>
+          </div>
+          <div className="mt-1 line-clamp-2 text-xs text-[var(--foreground)]">
+            {post.caption || ""}
+          </div>
+        </div>
+      </button>
+
+      {/* Top-right overlay: hover actions (Chat / Add to board) + outlier badge */}
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+        {cpId && (
+          <div className="pointer-events-none flex items-center gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
+            <button
+              onClick={openChat}
+              disabled={chatBusy}
+              title="Chat about this post"
+              className="rounded-md bg-[var(--card)]/80 p-1.5 text-[var(--muted-foreground)] backdrop-blur-sm transition-colors hover:text-emerald-500 disabled:opacity-50"
+            >
+              <MessageCircle className="h-4 w-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSaveOpen((v) => !v);
+              }}
+              title="Add to board"
+              className="rounded-md bg-[var(--card)]/80 p-1.5 text-[var(--muted-foreground)] backdrop-blur-sm transition-colors hover:text-sky-500"
+            >
+              <Bookmark className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        {post.outlier_multiplier !== null && post.outlier_multiplier >= 2 && (
+          <span className="pointer-events-none rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-semibold text-black">
+            {post.outlier_multiplier.toFixed(2)}×
+          </span>
+        )}
+      </div>
+
+      {saveOpen && cpId && (
+        <SaveToBoardMenu creatorPostId={cpId} onClose={() => setSaveOpen(false)} />
+      )}
+    </div>
   );
 }
 

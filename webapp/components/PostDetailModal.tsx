@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Zap,
   Bookmark,
@@ -9,6 +10,7 @@ import {
   X as XIcon,
   Heart,
   MessageSquare,
+  MessageCircle,
   Eye,
   EyeOff,
   Copy,
@@ -27,7 +29,6 @@ import { igImg, mediaImg } from "@/lib/proxy-image";
 import type { PostWithCreator } from "@/lib/discover-types";
 import type { AiOverview, AiOverviewBlock } from "@/lib/types-enrichment";
 import MarkdownView from "./MarkdownView";
-import PostBoostMenu from "./PostBoostMenu";
 import SaveToBoardMenu from "./SaveToBoardMenu";
 
 function fmtNum(n: number | null | undefined): string {
@@ -55,7 +56,8 @@ export default function PostDetailModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const [boostOpen, setBoostOpen] = useState(false);
+  const router = useRouter();
+  const [chatBusy, setChatBusy] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [hideSeen, setHideSeen] = useState(false);
@@ -96,6 +98,28 @@ export default function PostDetailModal({
   useEffect(() => {
     setEnrichment(normalizeAiOverview(post.ai_overview));
   }, [post.id, post.ai_overview]);
+
+  async function openChat() {
+    if (chatBusy) return;
+    setChatBusy(true);
+    const t = toast.loading("Starting chat…");
+    try {
+      const res = await fetch("/api/boost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: post.id, chat: true }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.chat_id) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      toast.dismiss(t);
+      router.push(`/chats/${data.chat_id}`);
+    } catch (e) {
+      toast.error("Couldn't start chat", { id: t, description: String(e) });
+      setChatBusy(false);
+    }
+  }
 
   async function copyCaption() {
     try {
@@ -156,27 +180,20 @@ export default function PostDetailModal({
             </span>
           )}
           <div className="flex-1" />
-          <div className="relative">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    onClick={() => {
-                      setBoostOpen((v) => !v);
-                      setSaveOpen(false);
-                    }}
-                    className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-amber-500/10 hover:text-amber-500"
-                  >
-                    <Zap className="h-4 w-4" />
-                  </button>
-                }
-              />
-              <TooltipContent>Boost</TooltipContent>
-            </Tooltip>
-            {boostOpen && (
-              <PostBoostMenu post={post} onClose={() => setBoostOpen(false)} />
-            )}
-          </div>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  onClick={openChat}
+                  disabled={chatBusy}
+                  className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-500 disabled:opacity-50"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </button>
+              }
+            />
+            <TooltipContent>Chat about this post</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger
               render={
@@ -198,10 +215,7 @@ export default function PostDetailModal({
               <TooltipTrigger
                 render={
                   <button
-                    onClick={() => {
-                      setSaveOpen((v) => !v);
-                      setBoostOpen(false);
-                    }}
+                    onClick={() => setSaveOpen((v) => !v)}
                     className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-sky-500/10 hover:text-sky-500"
                   >
                     <Bookmark className="h-4 w-4" />

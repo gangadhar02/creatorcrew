@@ -30,10 +30,65 @@ export async function POST(request: NextRequest) {
     action?: BoostAction;
     presetId?: PostBoostPresetId;
     voice_id?: string | null;
+    chat?: boolean;
   };
   const postId = body.postId;
   if (!postId) {
     return NextResponse.json({ error: "postId required" }, { status: 400 });
+  }
+
+  // "Chat" path — open a fresh AI chat seeded with the post so the user can
+  // ask anything about it. No preset, no forced output shape.
+  if (body.chat) {
+    const sb = getSupabase();
+    const { data: rawPost } = await sb
+      .from("creator_posts")
+      .select(
+        `id, platform, url, media_type, title_or_caption, like_count,
+         comment_count, view_count, outlier_multiplier, transcript,
+         creator:creators!inner(handle)`
+      )
+      .eq("id", postId)
+      .maybeSingle();
+    if (!rawPost) {
+      return NextResponse.json({ error: "post not found" }, { status: 404 });
+    }
+    const p = rawPost as unknown as {
+      url: string;
+      media_type: string | null;
+      title_or_caption: string | null;
+      like_count: number;
+      comment_count: number;
+      view_count: number;
+      outlier_multiplier: number | null;
+      transcript: string | null;
+      creator: { handle: string };
+    };
+    const stats = [
+      `${p.like_count} likes`,
+      `${p.comment_count} comments`,
+      p.view_count ? `${p.view_count} views` : null,
+      p.outlier_multiplier ? `${p.outlier_multiplier.toFixed(2)}× outlier` : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const message = [
+      `I want to chat about this ${p.media_type || "post"} from @${p.creator.handle}. ` +
+        `Give me a short read on it, then let me ask follow-ups.`,
+      p.title_or_caption ? `\nCaption:\n${p.title_or_caption}` : "",
+      p.transcript ? `\nTranscript:\n${p.transcript}` : "",
+      stats ? `\nStats: ${stats}.` : "",
+      `\nLink: ${p.url}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    return await spawnChat(request, {
+      context_kind: "creator_post",
+      context_id: postId,
+      voice_id: body.voice_id ?? null,
+      message,
+      title: `Chat — @${p.creator.handle}`,
+    });
   }
 
   // New post-level path

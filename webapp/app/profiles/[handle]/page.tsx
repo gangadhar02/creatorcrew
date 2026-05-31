@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import ProfilePostsGrid, { type ProfilePost } from "@/components/ProfilePostsGrid";
 import RefreshProfileButton from "@/components/RefreshProfileButton";
 import { igImg } from "@/lib/proxy-image";
@@ -115,6 +116,34 @@ export default async function ProfileDetail({
 
   const { data: postsData } = await query;
   const posts = (postsData || []) as ProfilePost[];
+
+  // Map each profile_posts row to its dual-written creator_posts id so the
+  // card's Chat / Add-to-board actions (which operate on creator_posts) work.
+  const ws = await getWorkspaceContext();
+  const mediaPks = posts.map((p) => p.media_pk).filter(Boolean);
+  if (ws.workspaceId && mediaPks.length > 0) {
+    const { data: creatorRows } = await sb
+      .from("creators")
+      .select("id")
+      .eq("workspace_id", ws.workspaceId)
+      .eq("platform", "instagram")
+      .eq("handle", handle.toLowerCase());
+    const creatorIds = (creatorRows || []).map((r) => (r as { id: string }).id);
+    if (creatorIds.length > 0) {
+      const { data: cps } = await sb
+        .from("creator_posts")
+        .select("id, platform_pk")
+        .in("creator_id", creatorIds)
+        .in("platform_pk", mediaPks);
+      const cpMap: Record<string, string> = {};
+      for (const cp of (cps || []) as { id: string; platform_pk: string }[]) {
+        cpMap[cp.platform_pk] = cp.id;
+      }
+      for (const p of posts) {
+        p.creator_post_id = cpMap[p.media_pk] ?? null;
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
