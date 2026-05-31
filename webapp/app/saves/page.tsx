@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import StatusBadge from "@/components/StatusBadge";
+import SavesRealtime from "@/components/SavesRealtime";
 import type { SaveStatus, SaveType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +55,7 @@ export default async function SavesPage({
             {saves?.length || 0} {sp.status ? `${sp.status} ` : ""}saves
           </p>
         </div>
+        <SavesRealtime />
       </header>
 
       {/* Filters */}
