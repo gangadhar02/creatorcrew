@@ -35,6 +35,7 @@ import MentionAutocomplete, { type MentionHit } from "./MentionAutocomplete";
 import VariationsCardList from "./VariationsCardList";
 import type { ShowBoostVariationsArgs } from "@/lib/tools";
 import { readNdjsonStream } from "@/lib/chat-stream";
+import { filesToAttachments } from "@/lib/chat-files";
 
 type Mention = { kind: "post" | "creator" | "list"; id: string; label: string };
 
@@ -557,31 +558,6 @@ function ChatTitlePicker({
  */
 function stripToolBlocks(md: string): string {
   return md.replace(/```tool:[\s\S]*?```/g, "").trim();
-}
-
-// Read picked files into base64 attachments for the chat API (inline to Gemini).
-async function filesToAttachments(
-  files: File[]
-): Promise<{ name: string; mimeType: string; dataBase64: string }[]> {
-  return Promise.all(
-    files.map(
-      (f) =>
-        new Promise<{ name: string; mimeType: string; dataBase64: string }>(
-          (resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () =>
-              resolve({
-                name: f.name,
-                mimeType: f.type || "application/octet-stream",
-                dataBase64:
-                  ((reader.result as string) || "").split(",")[1] || "",
-              });
-            reader.onerror = reject;
-            reader.readAsDataURL(f);
-          }
-        )
-    )
-  );
 }
 
 // Rotating "we're thinking" labels — picks a random phrase from a pool and

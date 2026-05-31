@@ -2,16 +2,26 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Columns3, Plus, Send, Sparkles } from "lucide-react";
+import { ArrowRight, Columns3, Plus, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import ChatRow from "./ChatRow";
 import { BOOST_STARTERS, type StarterKey } from "@/lib/boost-starters";
 import type { Chat } from "@/lib/types-chat";
 import { streamChat } from "@/lib/chat-stream";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { filesToAttachments } from "@/lib/chat-files";
+import { Badge } from "@/components/ui/badge";
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputHeader,
+  PromptInputFooter,
+  PromptInputTools,
+  PromptInputButton,
+  PromptInputTextarea,
+  PromptInputSubmit,
+} from "@/components/ai-elements/prompt-input";
 import { cn } from "@/lib/utils";
 
 export default function NewChatHome({ recent }: { recent: Chat[] }) {
@@ -19,23 +29,34 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [recentChats, setRecentChats] = useState(recent);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function send(prefill?: string) {
-    const text = prefill ?? message;
-    if (!text.trim() || sending) return;
+    const text = (prefill ?? message).trim();
+    // Boost starters don't carry files; only the typed composer does.
+    const files = prefill ? [] : pendingFiles;
+    if ((!text && files.length === 0) || sending) return;
     setSending(true);
+    const fileNote = files.length
+      ? `\n\n${files.map((f) => `📎 ${f.name}`).join("\n")}`
+      : "";
+    const fullMessage = `${text}${fileNote}`.trim();
+    setPendingFiles([]);
+    const attachments = files.length
+      ? await filesToAttachments(files)
+      : undefined;
+
     let navigated = false;
     const result = await streamChat(
-      {
-        message: text,
-        context_kind: "freeform",
-      },
+      { message: fullMessage, context_kind: "freeform", attachments },
       {
         onStart: (chatId) => {
           navigated = true;
           router.push(`/chats/${chatId}`);
         },
-        onError: (msg) => toast.error("Couldn't start chat", { description: msg }),
+        onError: (msg) =>
+          toast.error("Couldn't start chat", { description: msg }),
       }
     );
     if (!navigated && result?.chat_id) {
@@ -68,43 +89,82 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
             What deserves your attention today?
           </h1>
 
-          <div className="rounded-2xl border border-border/80 bg-card/90 p-2 shadow-[0_12px_50px_-32px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-            <div className="flex items-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="mb-0.5 rounded-full text-muted-foreground"
-                title="Attach context"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-              <Textarea
+          <PromptInput
+            onSubmit={(_message, e) => {
+              e.preventDefault();
+              send();
+            }}
+            className="rounded-2xl shadow-[0_12px_50px_-32px_rgba(0,0,0,0.5)]"
+          >
+            {pendingFiles.length > 0 && (
+              <PromptInputHeader>
+                {pendingFiles.map((f, i) => (
+                  <Badge
+                    key={`file-${i}-${f.name}`}
+                    variant="secondary"
+                    className="gap-1 pl-2 pr-1 text-[10px] font-normal"
+                  >
+                    📎 {f.name.length > 22 ? `${f.name.slice(0, 20)}…` : f.name}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPendingFiles((p) => p.filter((_, idx) => idx !== i))
+                      }
+                      className="rounded-sm p-0.5 text-muted-foreground hover:bg-background/40 hover:text-foreground"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </Badge>
+                ))}
+              </PromptInputHeader>
+            )}
+
+            <PromptInputBody>
+              <PromptInputTextarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => {
-                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     send();
                   }
                 }}
-                placeholder="Ask anything…"
-                rows={1}
+                placeholder="Ask anything…  (attach images / PDFs with +)"
                 disabled={sending}
-                className="min-h-9 resize-none border-0 bg-transparent px-0 py-2 text-sm shadow-none focus-visible:ring-0"
               />
-              <Button
-                onClick={() => send()}
-                disabled={sending || !message.trim()}
-                size="icon-sm"
-                className="mb-0.5 rounded-full"
-                title="Send"
-              >
-                <Send className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
+            </PromptInputBody>
 
+            <PromptInputFooter>
+              <PromptInputTools>
+                <PromptInputButton
+                  title="Attach images or PDFs"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Plus className="h-4 w-4" />
+                </PromptInputButton>
+              </PromptInputTools>
+              <PromptInputSubmit
+                status={sending ? "streaming" : "ready"}
+                disabled={sending || (!message.trim() && pendingFiles.length === 0)}
+              />
+            </PromptInputFooter>
+          </PromptInput>
+
+          {/* Hidden file picker driven by the + button */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              const picked = Array.from(e.target.files || []).filter(
+                (f) => f.size <= 15 * 1024 * 1024
+              );
+              setPendingFiles((prev) => [...prev, ...picked].slice(0, 6));
+              e.target.value = "";
+            }}
+          />
         </motion.div>
 
         <div className="mt-7 grid w-full max-w-xl items-start gap-10 sm:grid-cols-2">
