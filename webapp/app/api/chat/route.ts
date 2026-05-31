@@ -83,11 +83,18 @@ export async function POST(request: NextRequest) {
     system_prompt?: string; // overrides built-in system prompt
     tool?: string; // preferred tool name to surface (e.g. "showBoostVariations")
     mode?: "regular" | "max";
+    attachments?: { name: string; mimeType: string; dataBase64: string }[];
   };
   const mode: "regular" | "max" = body.mode === "max" ? "max" : "regular";
-  const selectedModel = MODEL_BY_MODE[mode];
+  const hasAttachments =
+    Array.isArray(body.attachments) && body.attachments.length > 0;
+  // Attachments (images / PDFs) need a multimodal model — route to Gemini and
+  // skip OpenRouter (the regular text model can't see files).
+  const selectedModel = hasAttachments
+    ? process.env.CHAT_MODEL_VISION || "gemini-2.5-flash"
+    : MODEL_BY_MODE[mode];
   const useOpenRouter =
-    !!openrouterApiKey && selectedModel.includes("/");
+    !hasAttachments && !!openrouterApiKey && selectedModel.includes("/");
   if (!body.message?.trim()) {
     return new Response(
       evString({ type: "error", message: "message required" }),
@@ -165,14 +172,31 @@ export async function POST(request: NextRequest) {
   if (body.mentions && body.mentions.length > 0) {
     extra = await buildMentionsSection(body.mentions);
   }
-  const contents = msgs.map((m, i) => {
-    const isLast = i === msgs.length - 1;
-    const text = isLast && extra ? `${m.content_md}\n\n${extra}` : m.content_md;
-    return {
-      role: m.role === "assistant" ? ("model" as const) : ("user" as const),
-      parts: [{ text }],
-    };
-  });
+  type GeminiPart =
+    | { text: string }
+    | { inlineData: { mimeType: string; data: string } };
+  const contents: { role: "model" | "user"; parts: GeminiPart[] }[] = msgs.map(
+    (m, i) => {
+      const isLast = i === msgs.length - 1;
+      const text =
+        isLast && extra ? `${m.content_md}\n\n${extra}` : m.content_md;
+      return {
+        role: m.role === "assistant" ? ("model" as const) : ("user" as const),
+        parts: [{ text }],
+      };
+    }
+  );
+
+  // Attach uploaded files (images / PDFs) to the latest user message so the
+  // model can see them. Inline base64 — Gemini only.
+  if (hasAttachments && contents.length > 0) {
+    const last = contents[contents.length - 1];
+    for (const a of body.attachments!) {
+      last.parts.push({
+        inlineData: { mimeType: a.mimeType, data: a.dataBase64 },
+      });
+    }
+  }
 
   // System prompt: use override if supplied, else the default builder.
   const effectiveSystemPrompt = body.system_prompt?.trim() || systemPrompt;
@@ -252,9 +276,14 @@ export async function POST(request: NextRequest) {
             // (consumed by the OpenRouter path when it builds its messages).
             const last = contents[contents.length - 1];
             if (last) {
-              last.parts = [
-                { text: `${last.parts[0]?.text || ""}\n\n${note}` },
-              ];
+              const textPart = last.parts.find(
+                (p): p is { text: string } => "text" in p
+              );
+              if (textPart) {
+                textPart.text = `${textPart.text}\n\n${note}`;
+              } else {
+                last.parts.unshift({ text: note });
+              }
             }
             extra = extra ? `${extra}\n\n${note}` : note;
           }

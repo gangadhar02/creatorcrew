@@ -52,7 +52,9 @@ export default function ChatThread({
   const title = chat.title;
   const [pendingMentions, setPendingMentions] = useState<Mention[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Detect @-mention typing
   useEffect(() => {
@@ -84,7 +86,8 @@ export default function ChatThread({
 
   async function send() {
     const text = input.trim();
-    if (!text || streaming) return;
+    const files = pendingFiles;
+    if ((!text && files.length === 0) || streaming) return;
     const userTempId = `tmp-user-${Date.now()}`;
     const assistantTempId = `tmp-assist-${Date.now()}`;
     setStreaming(true);
@@ -92,6 +95,11 @@ export default function ChatThread({
     setInput("");
     const mentions = pendingMentions;
     setPendingMentions([]);
+    setPendingFiles([]);
+    const fileNote = files.length
+      ? `\n\n${files.map((f) => `📎 ${f.name}`).join("\n")}`
+      : "";
+    const fullMessage = `${text}${fileNote}`.trim();
 
     // Optimistic user message
     setMessages((m) => [
@@ -100,7 +108,7 @@ export default function ChatThread({
         id: userTempId,
         chat_id: chat.id,
         role: "user",
-        content_md: text,
+        content_md: fullMessage,
         thoughts_md: null,
         tool_calls: null,
         attached_item_ids: null,
@@ -126,8 +134,11 @@ export default function ChatThread({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chat.id,
-          message: text,
+          message: fullMessage,
           mentions: mentions.length > 0 ? mentions : undefined,
+          attachments: files.length
+            ? await filesToAttachments(files)
+            : undefined,
         }),
       });
       if (!res.body) throw new Error("no response body");
@@ -276,7 +287,7 @@ export default function ChatThread({
             }}
             className="rounded-2xl shadow-[0_14px_60px_-34px_rgba(0,0,0,0.65)]"
           >
-            {pendingMentions.length > 0 && (
+            {(pendingMentions.length > 0 || pendingFiles.length > 0) && (
               <PromptInputHeader>
                 {pendingMentions.map((m, i) => (
                   <Badge
@@ -289,6 +300,24 @@ export default function ChatThread({
                       type="button"
                       onClick={() =>
                         setPendingMentions((p) => p.filter((_, idx) => idx !== i))
+                      }
+                      className="rounded-sm p-0.5 text-muted-foreground hover:bg-background/40 hover:text-foreground"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </Badge>
+                ))}
+                {pendingFiles.map((f, i) => (
+                  <Badge
+                    key={`file-${i}-${f.name}`}
+                    variant="secondary"
+                    className="gap-1 pl-2 pr-1 text-[10px] font-normal"
+                  >
+                    📎 {f.name.length > 22 ? `${f.name.slice(0, 20)}…` : f.name}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPendingFiles((p) => p.filter((_, idx) => idx !== i))
                       }
                       className="rounded-sm p-0.5 text-muted-foreground hover:bg-background/40 hover:text-foreground"
                     >
@@ -312,16 +341,35 @@ export default function ChatThread({
 
             <PromptInputFooter>
               <PromptInputTools>
-                <PromptInputButton title="Attach context" disabled>
+                <PromptInputButton
+                  title="Attach images or PDFs"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <Plus className="h-4 w-4" />
                 </PromptInputButton>
               </PromptInputTools>
               <PromptInputSubmit
                 status={streaming ? "streaming" : "ready"}
-                disabled={streaming || !input.trim()}
+                disabled={streaming || (!input.trim() && pendingFiles.length === 0)}
               />
             </PromptInputFooter>
           </PromptInput>
+
+          {/* Hidden file picker driven by the + button */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              const picked = Array.from(e.target.files || []).filter(
+                (f) => f.size <= 15 * 1024 * 1024
+              );
+              setPendingFiles((prev) => [...prev, ...picked].slice(0, 6));
+              e.target.value = "";
+            }}
+          />
 
           <AnimatePresence>
             {mentionQuery !== null && (
@@ -509,6 +557,31 @@ function ChatTitlePicker({
  */
 function stripToolBlocks(md: string): string {
   return md.replace(/```tool:[\s\S]*?```/g, "").trim();
+}
+
+// Read picked files into base64 attachments for the chat API (inline to Gemini).
+async function filesToAttachments(
+  files: File[]
+): Promise<{ name: string; mimeType: string; dataBase64: string }[]> {
+  return Promise.all(
+    files.map(
+      (f) =>
+        new Promise<{ name: string; mimeType: string; dataBase64: string }>(
+          (resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve({
+                name: f.name,
+                mimeType: f.type || "application/octet-stream",
+                dataBase64:
+                  ((reader.result as string) || "").split(",")[1] || "",
+              });
+            reader.onerror = reject;
+            reader.readAsDataURL(f);
+          }
+        )
+    )
+  );
 }
 
 // Rotating "we're thinking" labels — picks a random phrase from a pool and
