@@ -2,16 +2,35 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Send, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
+import { Streamdown } from "streamdown";
 import ChatRow from "./ChatRow";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import { Message, MessageContent } from "@/components/ai-elements/message";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputHeader,
+  PromptInputFooter,
+  PromptInputTools,
+  PromptInputButton,
+  PromptInputTextarea,
+  PromptInputSubmit,
+} from "@/components/ai-elements/prompt-input";
 import type { Chat, ChatMessage } from "@/lib/types-chat";
-import MarkdownView from "./MarkdownView";
 import MentionAutocomplete, { type MentionHit } from "./MentionAutocomplete";
 import VariationsCardList from "./VariationsCardList";
 import type { ShowBoostVariationsArgs } from "@/lib/tools";
@@ -34,11 +53,6 @@ export default function ChatThread({
   const [pendingMentions, setPendingMentions] = useState<Mention[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages]);
 
   // Detect @-mention typing
   useEffect(() => {
@@ -219,35 +233,51 @@ export default function ChatThread({
     }
   }
 
+  function onTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Plain Enter sends; Shift+Enter = newline. When the @-mention popup is
+    // open, its capture-phase listener picks the highlighted item instead.
+    if (e.key === "Enter" && !e.shiftKey && mentionQuery === null) {
+      e.preventDefault();
+      send();
+    }
+  }
+
   return (
-    <div className="-mx-6 -my-8 flex flex-col lg:-mx-8 lg:-my-10" style={{ minHeight: "100svh" }}>
+    <div
+      className="-mx-6 -my-8 flex flex-col lg:-mx-8 lg:-my-10"
+      style={{ height: "100svh" }}
+    >
       {/* Slim title bar */}
       <div className="flex h-10 shrink-0 items-center border-b border-border/50 px-6">
         <ChatTitlePicker currentChatId={chat.id} title={title} />
       </div>
 
-      {/* Messages — grows, then composer is pinned below */}
-      <div className="flex flex-1 flex-col items-center px-6 pb-6 pt-10">
-        <div className="w-full max-w-2xl space-y-8">
-          <AnimatePresence initial={false}>
-            {messages.map((m) => (
-              <MessageBubble
-                key={m.id}
-                m={m}
-                streaming={streamingMessageId === m.id}
-              />
-            ))}
-          </AnimatePresence>
-          <div ref={endRef} />
-        </div>
-      </div>
+      {/* Conversation — auto-sticks to bottom while streaming */}
+      <Conversation className="flex-1">
+        <ConversationContent className="mx-auto w-full max-w-2xl space-y-6 px-6 py-8">
+          {messages.map((m) => (
+            <ChatMessageView
+              key={m.id}
+              m={m}
+              streaming={streamingMessageId === m.id}
+            />
+          ))}
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
 
-      {/* Composer — sticky at bottom */}
-      <div className="sticky bottom-0 flex justify-center bg-gradient-to-t from-background via-background/95 to-transparent px-6 pb-5 pt-4">
-        <div className="w-full max-w-2xl">
-          <div className="relative rounded-2xl border border-border/80 bg-card/95 p-2 shadow-[0_14px_60px_-34px_rgba(0,0,0,0.65)] backdrop-blur-xl transition-shadow focus-within:shadow-[0_18px_70px_-34px_rgba(0,0,0,0.75)]">
+      {/* Composer */}
+      <div className="shrink-0 bg-gradient-to-t from-background via-background/95 to-transparent px-6 pb-5 pt-4">
+        <div className="relative mx-auto w-full max-w-2xl">
+          <PromptInput
+            onSubmit={(_message, e) => {
+              e.preventDefault();
+              send();
+            }}
+            className="rounded-2xl shadow-[0_14px_60px_-34px_rgba(0,0,0,0.65)]"
+          >
             {pendingMentions.length > 0 && (
-              <div className="mb-1 flex flex-wrap items-center gap-1 px-8">
+              <PromptInputHeader>
                 {pendingMentions.map((m, i) => (
                   <Badge
                     key={`${m.kind}-${m.id}`}
@@ -266,66 +296,49 @@ export default function ChatThread({
                     </button>
                   </Badge>
                 ))}
-              </div>
+              </PromptInputHeader>
             )}
 
-            <div className="flex items-end gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="mb-0.5 rounded-full text-muted-foreground"
-                title="Attach context"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-              <Textarea
+            <PromptInputBody>
+              <PromptInputTextarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (
-                    (e.metaKey || e.ctrlKey) &&
-                    e.key === "Enter" &&
-                    mentionQuery === null
-                  ) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-                placeholder="Ask anything…"
-                rows={1}
+                onKeyDown={onTextareaKeyDown}
+                placeholder="Ask anything…  (@ to add context)"
                 disabled={streaming}
-                className="min-h-9 resize-none border-0 bg-transparent px-0 py-2 text-sm shadow-none focus-visible:ring-0"
               />
-              <Button
-                onClick={send}
-                disabled={streaming || !input.trim()}
-                size="icon-sm"
-                className="mb-0.5 rounded-full"
-                title="Send"
-              >
-                <Send className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+            </PromptInputBody>
 
-            <AnimatePresence>
-              {mentionQuery !== null && (
-                <MentionAutocomplete
-                  query={mentionQuery}
-                  onPick={insertMention}
-                  onClose={() => setMentionQuery(null)}
-                />
-              )}
-            </AnimatePresence>
-          </div>
+            <PromptInputFooter>
+              <PromptInputTools>
+                <PromptInputButton title="Attach context" disabled>
+                  <Plus className="h-4 w-4" />
+                </PromptInputButton>
+              </PromptInputTools>
+              <PromptInputSubmit
+                status={streaming ? "streaming" : "ready"}
+                disabled={streaming || !input.trim()}
+              />
+            </PromptInputFooter>
+          </PromptInput>
+
+          <AnimatePresence>
+            {mentionQuery !== null && (
+              <MentionAutocomplete
+                query={mentionQuery}
+                onPick={insertMention}
+                onClose={() => setMentionQuery(null)}
+              />
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
   );
 }
 
-function MessageBubble({
+function ChatMessageView({
   m,
   streaming,
 }: {
@@ -334,75 +347,55 @@ function MessageBubble({
 }) {
   if (m.role === "system") {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border border-rose-300 bg-rose-50/50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/20 dark:text-rose-300"
-      >
+      <div className="mx-auto max-w-[90%] rounded-xl border border-rose-300 bg-rose-50/50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/20 dark:text-rose-300">
         {m.content_md}
-      </motion.div>
+      </div>
     );
   }
-  const isUser = m.role === "user";
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-      className={isUser ? "flex justify-end" : "flex justify-start"}
-    >
-      <div
-        className={cn(
-          "max-w-[85%]",
-          isUser
-            ? "rounded-2xl bg-card px-3 py-2 text-sm shadow-[0_10px_35px_-25px_rgba(0,0,0,0.7)] ring-1 ring-border/70"
-            : "text-sm leading-relaxed text-foreground"
-        )}
-      >
-        {m.thoughts_md && (
-          <details className="mb-2 text-xs text-muted-foreground">
-            <summary className="cursor-pointer select-none">
-              Thoughts ▾
-            </summary>
-            <div className="mt-1 opacity-80">
-              <MarkdownView>{m.thoughts_md}</MarkdownView>
-            </div>
-          </details>
-        )}
-        {isUser ? (
-          <div className="whitespace-pre-wrap">{m.content_md}</div>
-        ) : (
-          <>
-            {/* Tool-call renderings (showBoostVariations etc.) */}
-            {Array.isArray(m.tool_calls) &&
-              m.tool_calls.map((tc, i) => {
-                if (tc.name === "showBoostVariations") {
-                  const args = tc.args as ShowBoostVariationsArgs;
-                  if (Array.isArray(args?.variations)) {
-                    return (
-                      <div key={i} className="my-2">
-                        <VariationsCardList variations={args.variations} />
-                      </div>
-                    );
-                  }
-                }
-                return null;
-              })}
 
-            {m.content_md ? (
-              <div>
-                <MarkdownView>{stripToolBlocks(m.content_md)}</MarkdownView>
-                {streaming && (
-                  <span className="inline-block h-3 w-1.5 ml-0.5 bg-muted-foreground animate-pulse align-middle" />
-                )}
-              </div>
-            ) : streaming ? (
-              <RotatingStatus />
-            ) : null}
-          </>
+  const isUser = m.role === "user";
+  const toolCalls = (m.tool_calls as { name: string; args: unknown }[] | null) || [];
+
+  return (
+    <Message from={m.role}>
+      <MessageContent>
+        {/* Reasoning / thoughts */}
+        {!isUser && m.thoughts_md && (
+          <Reasoning
+            className="mb-3 w-full"
+            isStreaming={!!streaming && !m.content_md}
+          >
+            <ReasoningTrigger />
+            <ReasoningContent>{m.thoughts_md}</ReasoningContent>
+          </Reasoning>
         )}
-      </div>
-    </motion.div>
+
+        {/* Tool-call renderings (showBoostVariations) */}
+        {!isUser &&
+          toolCalls.map((tc, i) => {
+            if (tc.name === "showBoostVariations") {
+              const args = tc.args as ShowBoostVariationsArgs;
+              if (Array.isArray(args?.variations)) {
+                return (
+                  <div key={i} className="my-2">
+                    <VariationsCardList variations={args.variations} />
+                  </div>
+                );
+              }
+            }
+            return null;
+          })}
+
+        {/* Body */}
+        {isUser ? (
+          <span className="whitespace-pre-wrap">{m.content_md}</span>
+        ) : m.content_md ? (
+          <Streamdown>{stripToolBlocks(m.content_md)}</Streamdown>
+        ) : streaming ? (
+          <RotatingStatus />
+        ) : null}
+      </MessageContent>
+    </Message>
   );
 }
 
@@ -519,7 +512,7 @@ function stripToolBlocks(md: string): string {
 }
 
 // Rotating "we're thinking" labels — picks a random phrase from a pool and
-// cycles through the rest every ~2.4s. Matches Eden's pre-token chat status.
+// cycles through the rest every ~2.4s while waiting for the first token.
 const STATUS_POOL = [
   "Chasing the thread",
   "Connecting the dots",
@@ -533,7 +526,6 @@ const STATUS_POOL = [
 
 function RotatingStatus() {
   const [phrases] = useState(() => {
-    // Random ordering so each chat feels different.
     const arr = [...STATUS_POOL];
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
