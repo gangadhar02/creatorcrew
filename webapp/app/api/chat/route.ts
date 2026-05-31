@@ -20,6 +20,7 @@ import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
 import { getSupabase } from "@/lib/supabase";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { buildSystemPrompt } from "@/lib/chat-context";
+import { runChatPostTools, type ChatContent } from "@/lib/chat-post-tools";
 import { SHOW_BOOST_VARIATIONS_TOOL } from "@/lib/tools";
 import { streamOpenRouter, type ORMessage } from "@/lib/openrouter";
 import type { Chat } from "@/lib/types-chat";
@@ -199,11 +200,68 @@ export async function POST(request: NextRequest) {
     };
   }
 
+  // On-demand post tools — for creator_post chats, let the model fetch the
+  // transcript / vision analysis when asked. Only offer a tool if that data
+  // isn't already on the post (once fetched it's cached + in the context).
+  let postToolAllow: { transcript: boolean; vision: boolean } | null = null;
+  if (chat.context_kind === "creator_post" && chat.context_id && !body.tool) {
+    const { data: pc } = await sb
+      .from("creator_posts")
+      .select("transcript, vision_analysis_md, ai_overview")
+      .eq("id", chat.context_id)
+      .maybeSingle();
+    const r = (pc || {}) as {
+      transcript?: string | null;
+      vision_analysis_md?: string | null;
+      ai_overview?: unknown;
+    };
+    const allowT = !r.transcript;
+    const allowV = !r.vision_analysis_md && !r.ai_overview;
+    if (allowT || allowV) postToolAllow = { transcript: allowT, vision: allowV };
+  }
+
   const ai = new GoogleGenAI({ apiKey: geminiApiKey });
   const stream = new ReadableStream({
     async start(controller) {
       controller.enqueue(ev({ type: "start", chat_id: chat.id }));
       let assembled = "";
+
+      // Run post tools first if relevant, then inject results into the context
+      // before the main generation so the model answers with the fetched data.
+      if (postToolAllow && chat.context_id) {
+        try {
+          const { note } = await runChatPostTools({
+            ai,
+            postId: chat.context_id,
+            contents: contents as ChatContent[],
+            systemPrompt: effectiveSystemPrompt,
+            allow: postToolAllow,
+            onToolStart: (names) => {
+              const label = names
+                .map((n) =>
+                  n === "fetch_transcript" ? "transcript" : "visual analysis"
+                )
+                .join(" + ");
+              const note = `_Fetching ${label}…_\n\n`;
+              assembled += note;
+              controller.enqueue(ev({ type: "token", text: note }));
+            },
+          });
+          if (note) {
+            // Inject into the Gemini `contents` (already built) AND `extra`
+            // (consumed by the OpenRouter path when it builds its messages).
+            const last = contents[contents.length - 1];
+            if (last) {
+              last.parts = [
+                { text: `${last.parts[0]?.text || ""}\n\n${note}` },
+              ];
+            }
+            extra = extra ? `${extra}\n\n${note}` : note;
+          }
+        } catch {
+          /* tools are best-effort — fall through to a normal answer */
+        }
+      }
       let reasoning = "";
       const toolCalls: { name: string; args: unknown }[] = [];
 
