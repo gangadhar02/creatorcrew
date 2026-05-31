@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getBoolPref, PREF_KEYS } from "@/lib/prefs";
 
 export default function ChatRow({
   id,
@@ -29,6 +30,13 @@ export default function ChatRow({
     e.preventDefault();
     e.stopPropagation();
     if (deleting) return;
+    // Respect the "Confirm before deleting chats" preference (Settings → Preferences).
+    if (
+      getBoolPref(PREF_KEYS.confirmDeleteChats, true) &&
+      !window.confirm(`Delete "${title || "this chat"}"? This can't be undone.`)
+    ) {
+      return;
+    }
     setDeleting(true);
     try {
       const res = await fetch(`/api/chats/${id}`, { method: "DELETE" });

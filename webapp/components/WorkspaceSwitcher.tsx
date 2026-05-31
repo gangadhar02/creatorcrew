@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Settings, CreditCard, LogOut, ChevronsUpDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import SettingsDialog from "./settings/SettingsDialog";
 
 /**
  * Workspace switcher dropdown in the sidebar footer.
@@ -26,11 +27,11 @@ export default function WorkspaceSwitcher({
   email: string;
   collapsed?: boolean;
 }) {
-  const router = useRouter();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const initial = name.slice(0, 1).toUpperCase();
 
   function onSettings() {
-    router.push("/settings");
+    setSettingsOpen(true);
   }
 
   function onBilling() {
@@ -91,6 +92,7 @@ export default function WorkspaceSwitcher({
   );
 
   return (
+    <>
     <div className={cn("border-t", collapsed && "sidebar-block pb-3")}>
       <DropdownMenu>
         <DropdownMenuTrigger render={trigger} />
@@ -133,5 +135,12 @@ export default function WorkspaceSwitcher({
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
+    <SettingsDialog
+      open={settingsOpen}
+      onClose={() => setSettingsOpen(false)}
+      workspaceName={name}
+      workspaceEmail={email}
+    />
+    </>
   );
 }
