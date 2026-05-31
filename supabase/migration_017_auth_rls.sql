@@ -42,12 +42,13 @@ create unique index if not exists workspaces_owner_user_id_unique
 create index if not exists workspaces_owner_email_idx
   on workspaces (owner_email);
 
--- Re-key the existing personal workspace to the user's gmail so they can
--- claim it on first sign-in. (The seed had ads@demandlane.com from the
--- pre-auth single-tenant days.) Safe to run when the email is already set.
+-- Re-key the existing personal workspace to your login email so you can
+-- claim it on first sign-in. Replace the placeholders below with your own
+-- email if the workspace was seeded with a different address. Safe to run
+-- when the email is already set.
 update workspaces
-  set owner_email = 'sgangadhar.exe@gmail.com'
-  where owner_email = 'ads@demandlane.com'
+  set owner_email = 'owner@example.com'
+  where owner_email = 'old-owner@example.com'
     and owner_user_id is null;
 
 -- ============================================================================

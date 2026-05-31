@@ -4,8 +4,8 @@
  * Each authenticated user owns exactly one workspace. On every request we:
  *   1. Look up the user's workspace by `owner_user_id = auth.uid()`.
  *   2. If none, claim a legacy single-tenant workspace whose `owner_email`
- *      matches the user's email (this is how `sgangadhar.exe@gmail.com`
- *      adopts the pre-auth data on first sign-in).
+ *      matches the user's email (this is how the original owner adopts the
+ *      pre-auth data on first sign-in).
  *   3. Otherwise, create a fresh empty workspace + seed onboarding rows.
  *
  * All DB writes here use the service-role client (`getSupabase()`), so

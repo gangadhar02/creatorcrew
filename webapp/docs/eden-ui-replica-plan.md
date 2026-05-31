@@ -515,7 +515,7 @@ Not the user's voice profile. This is the **TTS voice for assistant replies** (l
 
 ```
 ┌─────────────────────────┐
-│ G gangadhar's workspace │
+│ M My workspace          │
 ├─────────────────────────┤
 │ ⚙ Settings              │
 │ 💳 Billing              │

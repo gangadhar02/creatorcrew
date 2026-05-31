@@ -23,8 +23,10 @@ create trigger workspaces_updated_at before update on workspaces
   for each row execute function set_updated_at();
 
 -- Seed the default workspace for the current user. Idempotent.
+-- Replace 'owner@example.com' with the email you sign in with so you can
+-- claim this workspace on first sign-in (see migration 017).
 insert into workspaces (id, name, owner_email)
-select gen_random_uuid(), 'gangadhar''s workspace', 'ads@demandlane.com'
+select gen_random_uuid(), 'My workspace', 'owner@example.com'
 where not exists (select 1 from workspaces);
 
 -- ============================================================================
