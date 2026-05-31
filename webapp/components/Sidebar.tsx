@@ -151,7 +151,14 @@ export default function Sidebar({
       } else {
         toast.success("Sync queued", {
           id: t,
-          description: data.pid ? `pid ${data.pid}` : undefined,
+          description:
+            data.message || (data.pid ? `pid ${data.pid}` : undefined),
+          action: data.workflow_run_url
+            ? {
+                label: "View run",
+                onClick: () => window.open(data.workflow_run_url, "_blank"),
+              }
+            : undefined,
         });
       }
     } catch (e) {
