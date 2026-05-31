@@ -199,7 +199,13 @@ async function spawnChat(
 ) {
   const chatRes = await fetch(new URL("/api/chat", request.url), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      // Forward auth so /api/chat resolves the same workspace (getWorkspaceContext
+      // reads the auth cookie). Without this the internal call is unauthenticated
+      // and chat creation fails with "no workspace".
+      cookie: request.headers.get("cookie") || "",
+    },
     body: JSON.stringify(payload),
   });
   if (!chatRes.body || !chatRes.ok) {
