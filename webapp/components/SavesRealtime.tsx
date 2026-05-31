@@ -22,27 +22,49 @@ export default function SavesRealtime() {
 
   useEffect(() => {
     const sb = getSupabaseBrowserClient();
-    const channel = sb
-      .channel("saves-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "saves" },
-        () => {
-          // A sync inserts many rows in a burst — debounce so we refresh once.
-          if (debounce.current) clearTimeout(debounce.current);
-          debounce.current = setTimeout(() => {
-            router.refresh();
-            toast.success("New saves synced", { duration: 2500 });
-          }, 900);
-        }
-      )
-      .subscribe((status: string) => {
-        setLive(status === "SUBSCRIBED");
-      });
+    let channel: ReturnType<typeof sb.channel> | null = null;
+    let cancelled = false;
+
+    (async () => {
+      // The `saves` Realtime SELECT policy is `to authenticated`, so the
+      // Realtime socket must carry the logged-in user's JWT. supabase-js does
+      // this on auth-state changes, but on a fresh page load the session is
+      // restored from cookies asynchronously — set it explicitly before
+      // subscribing so the very first connection is authenticated.
+      const {
+        data: { session },
+      } = await sb.auth.getSession();
+      if (cancelled) return;
+      if (session?.access_token) sb.realtime.setAuth(session.access_token);
+
+      channel = sb
+        .channel("saves-realtime")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "saves" },
+          () => {
+            // A sync inserts many rows in a burst — debounce so we refresh once.
+            if (debounce.current) clearTimeout(debounce.current);
+            debounce.current = setTimeout(() => {
+              router.refresh();
+              toast.success("New saves synced", { duration: 2500 });
+            }, 900);
+          }
+        )
+        .subscribe((status: string) => {
+          setLive(status === "SUBSCRIBED");
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            // Surface server-side misconfig (table not in publication / RLS)
+            // instead of silently sitting in a non-live state.
+            console.warn("[SavesRealtime] channel status:", status);
+          }
+        });
+    })();
 
     return () => {
+      cancelled = true;
       if (debounce.current) clearTimeout(debounce.current);
-      sb.removeChannel(channel);
+      if (channel) sb.removeChannel(channel);
     };
   }, [router]);
 
