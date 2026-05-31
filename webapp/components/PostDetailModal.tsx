@@ -1,31 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Zap,
   Bookmark,
   ExternalLink,
   X as XIcon,
-  Heart,
-  MessageSquare,
   MessageCircle,
-  Eye,
-  EyeOff,
   Copy,
-  BadgeCheck,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { igImg, mediaImg } from "@/lib/proxy-image";
+import { mediaImg } from "@/lib/proxy-image";
 import type { PostWithCreator } from "@/lib/discover-types";
 import type { AiOverview, AiOverviewBlock } from "@/lib/types-enrichment";
 import MarkdownView from "./MarkdownView";
@@ -37,15 +27,6 @@ function fmtNum(n: number | null | undefined): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 }
-
-const PLATFORM_COLORS: Record<string, string> = {
-  instagram: "bg-pink-500",
-  youtube: "bg-red-500",
-  x: "bg-zinc-800",
-  linkedin: "bg-sky-700",
-  substack: "bg-orange-500",
-  tiktok: "bg-zinc-900",
-};
 
 export default function PostDetailModal({
   post,
@@ -59,23 +40,17 @@ export default function PostDetailModal({
   const router = useRouter();
   const [chatBusy, setChatBusy] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
-  const [transcriptOpen, setTranscriptOpen] = useState(false);
-  const [hideSeen, setHideSeen] = useState(false);
+  const [tab, setTab] = useState<"caption" | "transcript" | "vision">("caption");
   const [enrichment, setEnrichment] = useState<AiOverview | null>(
     normalizeAiOverview(post.ai_overview)
   );
   const [enriching, setEnriching] = useState(false);
 
-  const c = post.creator;
-  const platformColor = PLATFORM_COLORS[post.platform] || "bg-zinc-500";
-
   const thumbnail = post.thumbnail_url
     ? mediaImg(post.thumbnail_url, post.platform)
     : null;
 
-  // Instagram embed — plays the reel / swipes the carousel inline, using IG's
-  // own embed iframe (same approach as Eden). Falls back to the thumbnail for
-  // non-IG platforms or when we can't resolve a shortcode.
+  // Instagram embed — plays the reel / swipes the carousel inline.
   const igCode = (() => {
     if (post.code) return post.code;
     const m = post.url?.match(/\/(?:p|reel|reels|tv)\/([^/?#]+)/);
@@ -88,7 +63,6 @@ export default function PostDetailModal({
       ? `https://www.instagram.com/${isReel ? "reel" : "p"}/${igCode}/embed`
       : null;
 
-  // Mark seen when modal opens.
   useEffect(() => {
     if (open) {
       fetch(`/api/post-seen/${post.id}`, { method: "POST" }).catch(() => {});
@@ -121,20 +95,13 @@ export default function PostDetailModal({
     }
   }
 
-  async function copyCaption() {
+  async function copyText(text: string) {
     try {
-      await navigator.clipboard.writeText(post.title_or_caption || "");
-      toast.success("Caption copied");
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied");
     } catch {
       toast.error("Couldn't copy");
     }
-  }
-
-  async function hidePost() {
-    setHideSeen(true);
-    fetch(`/api/post-seen/${post.id}`, { method: "POST" }).catch(() => {});
-    toast.success("Hidden");
-    setTimeout(onClose, 200);
   }
 
   async function runEnrich() {
@@ -162,105 +129,86 @@ export default function PostDetailModal({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="max-w-xl gap-0 overflow-hidden p-0"
+        showCloseButton={false}
+        className="gap-0 overflow-hidden p-0 sm:max-w-3xl"
         style={{ maxHeight: "90vh" }}
       >
         <DialogTitle className="sr-only">
           {post.title_or_caption?.slice(0, 60) || "Post detail"}
         </DialogTitle>
 
-        {/* Top bar */}
-        <div className="flex items-center gap-1 border-b px-3 py-2">
-          <Badge className={cn("text-white text-[10px]", platformColor)}>
-            {post.platform}
-          </Badge>
-          {post.taxonomy_label && (
-            <span className="ml-1 truncate text-[11px] text-muted-foreground">
-              {post.taxonomy_label}
-            </span>
-          )}
-          <div className="flex-1" />
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  onClick={openChat}
-                  disabled={chatBusy}
-                  className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-500 disabled:opacity-50"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                </button>
-              }
-            />
-            <TooltipContent>Chat about this post</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  onClick={hidePost}
-                  className={cn(
-                    "grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500",
-                    hideSeen && "opacity-50"
-                  )}
-                >
-                  <EyeOff className="h-4 w-4" />
-                </button>
-              }
-            />
-            <TooltipContent>Hide from feed</TooltipContent>
-          </Tooltip>
-          <div className="relative">
+        {/* Header — title + actions */}
+        <div className="flex items-center gap-2 border-b px-4 py-3">
+          <div className="min-w-0 flex-1 truncate text-sm font-medium">
+            {post.title_or_caption?.split("\n")[0] || "Post"}
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
             <Tooltip>
               <TooltipTrigger
                 render={
                   <button
-                    onClick={() => setSaveOpen((v) => !v)}
-                    className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-sky-500/10 hover:text-sky-500"
+                    onClick={openChat}
+                    disabled={chatBusy}
+                    className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-500 disabled:opacity-50"
                   >
-                    <Bookmark className="h-4 w-4" />
+                    <MessageCircle className="h-4 w-4" />
                   </button>
                 }
               />
-              <TooltipContent>Save to board</TooltipContent>
+              <TooltipContent>Chat about this post</TooltipContent>
             </Tooltip>
-            {saveOpen && (
-              <SaveToBoardMenu
-                creatorPostId={post.id}
-                onClose={() => setSaveOpen(false)}
+            <div className="relative">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      onClick={() => setSaveOpen((v) => !v)}
+                      className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-sky-500/10 hover:text-sky-500"
+                    >
+                      <Bookmark className="h-4 w-4" />
+                    </button>
+                  }
+                />
+                <TooltipContent>Add to board</TooltipContent>
+              </Tooltip>
+              {saveOpen && (
+                <SaveToBoardMenu
+                  creatorPostId={post.id}
+                  onClose={() => setSaveOpen(false)}
+                />
+              )}
+            </div>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <a
+                    href={post.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                }
               />
-            )}
+              <TooltipContent>Open original</TooltipContent>
+            </Tooltip>
+            <button
+              onClick={onClose}
+              className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+            >
+              <XIcon className="h-4 w-4" />
+            </button>
           </div>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <a
-                  href={post.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              }
-            />
-            <TooltipContent>Open original</TooltipContent>
-          </Tooltip>
-          <button
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-muted"
-          >
-            <XIcon className="h-4 w-4" />
-          </button>
         </div>
 
-        {/* Body — single column, Eden-style */}
+        {/* Body — scrollable */}
         <div
           className="flex flex-col overflow-y-auto"
-          style={{ maxHeight: "calc(90vh - 49px)" }}
+          style={{ maxHeight: "calc(90vh - 57px)" }}
         >
-          {/* Media — playable IG embed (reel/carousel), thumbnail fallback */}
-          <div className="relative bg-black">
+          {/* Media */}
+          <div className="flex items-center justify-center bg-black p-4">
             {embedUrl ? (
               <iframe
                 key={embedUrl}
@@ -269,176 +217,110 @@ export default function PostDetailModal({
                 loading="lazy"
                 allowFullScreen
                 scrolling="no"
-                className="mx-auto block w-full max-w-[400px] border-0 bg-white"
-                style={{ height: 640 }}
+                className="block w-full max-w-[400px] rounded border-0 bg-white"
+                style={{ height: 560 }}
               />
             ) : thumbnail ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={thumbnail}
                 alt=""
-                className="mx-auto max-h-[70vh] w-auto object-contain"
+                className="max-h-[55vh] w-auto rounded"
               />
             ) : null}
-            {post.media_type && (
-              <Badge
-                variant="secondary"
-                className="absolute left-2 top-2 bg-black/60 text-white"
-              >
-                {post.media_type}
-              </Badge>
-            )}
           </div>
 
-          {/* Creator row */}
-          <div className="flex items-center gap-3 border-b px-4 py-3">
-            <Avatar className="h-9 w-9">
-              <AvatarImage
-                src={
-                  c.avatar_url
-                    ? /\/social-mirror\//.test(c.avatar_url)
-                      ? c.avatar_url
-                      : post.platform === "instagram"
-                        ? igImg(c.avatar_url)
-                        : c.avatar_url
-                    : undefined
+          <div className="space-y-4 p-4">
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-5">
+              <Stat
+                label="vs views"
+                value={
+                  post.outlier_multiplier
+                    ? `${post.outlier_multiplier.toFixed(2)}×`
+                    : "—"
                 }
-                alt=""
+                highlight={
+                  !!post.outlier_multiplier && post.outlier_multiplier >= 2
+                }
               />
-              <AvatarFallback>
-                {c.handle.slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1 text-sm font-medium">
-                <span className="truncate">
-                  {c.display_name || `@${c.handle}`}
-                </span>
-                {c.is_verified && (
-                  <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-sky-500" />
-                )}
-              </div>
-              <div className="truncate text-[11px] text-muted-foreground">
-                @{c.handle}
-                {post.published_at
-                  ? ` · ${new Date(post.published_at).toLocaleString(undefined, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}`
-                  : ""}
-              </div>
+              <Stat label="views" value={fmtNum(post.view_count)} />
+              <Stat label="likes" value={fmtNum(post.like_count)} />
+              <Stat label="comments" value={fmtNum(post.comment_count)} />
+              <Stat
+                label="eng. rate"
+                value={
+                  post.engagement_rate
+                    ? `${post.engagement_rate.toFixed(2)}%`
+                    : "—"
+                }
+              />
             </div>
-            <Link
-              href={`/creators/${post.platform}/${c.handle}`}
-              className="shrink-0 rounded-md border bg-card px-2 py-1 text-xs hover:border-primary/40"
-              onClick={onClose}
-            >
-              View profile
-            </Link>
-          </div>
 
-          {/* Stats pill */}
-          <div className="border-b px-4 py-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border bg-card px-3 py-2 text-xs tabular-nums">
-              {post.outlier_multiplier !== null &&
-                post.outlier_multiplier !== undefined && (
-                  <span
-                    className={cn(
-                      "flex items-center gap-1",
-                      post.outlier_multiplier >= 2
-                        ? "font-semibold text-amber-600 dark:text-amber-400"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    <Zap className="h-3 w-3" />
-                    {post.outlier_multiplier.toFixed(2)}×
-                    <span className="text-muted-foreground">vs views</span>
-                  </span>
-                )}
-              {post.view_count > 0 && (
-                <span className="flex items-center gap-1">
-                  <Eye className="h-3 w-3 text-muted-foreground" />
-                  {fmtNum(post.view_count)}
-                  <span className="text-muted-foreground">views</span>
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <Heart className="h-3 w-3 text-muted-foreground" />
-                {fmtNum(post.like_count)}
-                <span className="text-muted-foreground">likes</span>
-              </span>
-              <span className="flex items-center gap-1">
-                <MessageSquare className="h-3 w-3 text-muted-foreground" />
-                {fmtNum(post.comment_count)}
-                <span className="text-muted-foreground">comments</span>
-              </span>
-              {post.engagement_rate !== null &&
-                post.engagement_rate !== undefined && (
-                  <span className="flex items-center gap-1">
-                    {post.engagement_rate.toFixed(2)}%
-                    <span className="text-muted-foreground">eng. rate</span>
-                  </span>
-                )}
+            {/* Tabs */}
+            <div className="flex items-center gap-2 border-b">
+              <TabBtn
+                active={tab === "caption"}
+                onClick={() => setTab("caption")}
+                label="Caption"
+              />
+              <TabBtn
+                active={tab === "transcript"}
+                onClick={() => setTab("transcript")}
+                label={`Transcript${post.transcript ? " ✓" : ""}`}
+              />
+              <TabBtn
+                active={tab === "vision"}
+                onClick={() => setTab("vision")}
+                label={`Vision${enrichment ? " ✓" : ""}`}
+              />
             </div>
-          </div>
 
-            {/* Caption */}
-            {post.title_or_caption && (
-              <div className="border-b px-4 py-3">
-                <div className="mb-1 flex items-center justify-between">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                    Caption
-                  </div>
+            {tab === "caption" &&
+              (post.title_or_caption ? (
+                <div className="relative">
                   <button
-                    onClick={copyCaption}
-                    className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
+                    onClick={() => copyText(post.title_or_caption || "")}
+                    className="absolute right-2 top-2 inline-flex items-center gap-1 rounded border bg-card px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
                   >
                     <Copy className="h-3 w-3" /> Copy
                   </button>
+                  <p className="whitespace-pre-wrap rounded-md border bg-background p-3 pr-16 text-sm">
+                    {post.title_or_caption}
+                  </p>
                 </div>
-                <div className="text-sm whitespace-pre-wrap line-clamp-[12]">
-                  {post.title_or_caption}
-                </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground">(no caption)</p>
+              ))}
 
-            {/* AI tags */}
-            {post.ai_tags && post.ai_tags.length > 0 && (
-              <div className="border-b px-4 py-3">
-                <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Tags
+            {tab === "transcript" &&
+              (post.transcript ? (
+                <div className="relative">
+                  <button
+                    onClick={() => copyText(post.transcript || "")}
+                    className="absolute right-2 top-2 inline-flex items-center gap-1 rounded border bg-card px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                  >
+                    <Copy className="h-3 w-3" /> Copy
+                  </button>
+                  <p className="whitespace-pre-wrap rounded-md border bg-background p-3 pr-16 text-sm">
+                    {post.transcript}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {post.ai_tags.map((t) => (
-                    <Badge
-                      key={t}
-                      variant="secondary"
-                      className="text-[10px] font-mono"
-                    >
-                      {t}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No transcript stored for this post.
+                </p>
+              ))}
 
-            {/* AI description */}
-            {post.ai_description && (
-              <div className="border-b px-4 py-3">
-                <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Summary
+            {tab === "vision" &&
+              (enrichment ? (
+                <AiOverviewBlocks blocks={enrichment.blocks} />
+              ) : post.vision_analysis_md ? (
+                <div className="rounded-md border bg-background p-4 text-sm">
+                  <MarkdownView>{post.vision_analysis_md}</MarkdownView>
                 </div>
-                <p className="text-sm">{post.ai_description}</p>
-              </div>
-            )}
-
-            {/* Vision Analysis / AI overview blocks */}
-            <div className="border-b px-4 py-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Vision Analysis
-                </div>
-                {!enrichment && (
+              ) : (
+                <div className="flex items-center gap-3">
                   <Button
                     size="sm"
                     variant="outline"
@@ -447,54 +329,76 @@ export default function PostDetailModal({
                   >
                     {enriching ? "Analyzing…" : "Run analysis"}
                   </Button>
-                )}
-              </div>
-              {enrichment ? (
-                <AiOverviewBlocks blocks={enrichment.blocks} />
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  No AI overview yet. Click &ldquo;Run analysis&rdquo; to
-                  generate hook, pull-quotes, and structure.
-                </p>
-              )}
-            </div>
+                  <span className="text-xs text-muted-foreground">
+                    Generate hook, pull-quotes, and structure.
+                  </span>
+                </div>
+              ))}
 
-            {/* Transcript collapsible */}
-            {post.transcript && (
-              <div className="border-b px-4 py-3">
-                <button
-                  onClick={() => setTranscriptOpen((v) => !v)}
-                  className="flex w-full items-center justify-between text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
-                >
-                  <span>Transcript</span>
-                  {transcriptOpen ? (
-                    <ChevronUp className="h-3 w-3" />
-                  ) : (
-                    <ChevronDown className="h-3 w-3" />
-                  )}
-                </button>
-                {transcriptOpen && (
-                  <div className="mt-2 max-h-60 overflow-y-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap">
-                    {post.transcript}
-                  </div>
-                )}
+            {post.published_at && (
+              <div className="text-xs text-muted-foreground">
+                Posted {new Date(post.published_at).toLocaleString()}
               </div>
             )}
-
-            {/* Vision analysis (legacy markdown) */}
-            {post.vision_analysis_md && (
-              <div className="px-4 py-3">
-                <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Vision (legacy)
-                </div>
-                <div className="text-xs">
-                  <MarkdownView>{post.vision_analysis_md}</MarkdownView>
-                </div>
-              </div>
-            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border bg-card px-2.5 py-2",
+        highlight && "border-amber-400/60 bg-amber-50 dark:bg-amber-400/10"
+      )}
+    >
+      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "mt-0.5 text-sm font-semibold tabular-nums",
+          highlight && "text-amber-600 dark:text-amber-400"
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function TabBtn({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "border-b-2 px-3 py-1.5 text-xs transition-colors",
+        active
+          ? "border-primary font-medium text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground"
+      )}
+    >
+      {label}
+    </button>
   );
 }
 
