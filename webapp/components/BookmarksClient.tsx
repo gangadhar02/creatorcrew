@@ -4,7 +4,8 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, LayoutGrid, Grid3x3 } from "lucide-react";
 import type { BookmarkItem } from "@/lib/types-bookmarks";
-import BookmarksCanvas from "./BookmarksCanvas";
+import BookmarksTldrawCanvas from "./bookmarks/BookmarksTldrawCanvas";
+import type { TLStoreSnapshot } from "tldraw";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -22,9 +23,11 @@ const ALL_TAGS_VALUE = "__all_bookmark_tags__";
 export default function BookmarksClient({
   initialItems,
   schemaReady,
+  initialCanvasState,
 }: {
   initialItems: BookmarkItem[];
   schemaReady: boolean;
+  initialCanvasState?: unknown;
 }) {
   const [items, setItems] = useState<BookmarkItem[]>(initialItems);
   const [syncing, setSyncing] = useState(false);
@@ -32,6 +35,10 @@ export default function BookmarksClient({
   // Bump to force the canvas to remount and re-run its initial fitView.
   // Used after "Reset to grid" so the camera snaps to the new layout.
   const [canvasKey, setCanvasKey] = useState(0);
+  // tldraw whiteboard snapshot for this workspace; null re-seeds from the grid.
+  const [canvasState, setCanvasState] = useState<unknown>(
+    initialCanvasState ?? null
+  );
 
   const tags = Array.from(
     new Set(
@@ -53,19 +60,6 @@ export default function BookmarksClient({
     ? items.filter((i) => Array.isArray(i.tags) && i.tags.includes(activeTag))
     : items;
 
-  const persistPosition = useCallback(async (id: string, x: number, y: number) => {
-    setItems((arr) => arr.map((it) => (it.id === id ? { ...it, x, y } : it)));
-    try {
-      await fetch(`/api/bookmarks/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ x, y }),
-      });
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
   const handleUpdate = useCallback(
     (id: string, patch: Partial<BookmarkItem>) => {
       setItems((arr) =>
@@ -80,6 +74,34 @@ export default function BookmarksClient({
     setItems((arr) => arr.filter((it) => it.id !== id));
     toast.success("Removed from canvas");
   }, []);
+
+  // Paste/drop an Instagram link on the canvas → fetch it (Apify) and add a
+  // bookmark card at the drop point.
+  const handlePasteUrl = useCallback(
+    async (url: string, point?: { x: number; y: number }) => {
+      if (!/^https?:\/\//i.test(url)) return;
+      const t = toast.loading("Adding bookmark from link…");
+      try {
+        const res = await fetch("/api/bookmarks/add-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, x: point?.x, y: point?.y }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        const listRes = await fetch("/api/bookmarks");
+        const listData = await listRes.json();
+        setItems(listData.items || []);
+        toast.success("Added to canvas", { id: t });
+      } catch (e) {
+        toast.error("Couldn't add bookmark", {
+          id: t,
+          description: e instanceof Error ? e.message : String(e),
+        });
+      }
+    },
+    []
+  );
 
   async function syncBookmarks() {
     if (!schemaReady) {
@@ -147,12 +169,9 @@ export default function BookmarksClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Reset failed");
 
-      // Clear the saved camera so the canvas re-fits to the new grid.
-      try {
-        window.localStorage.removeItem("bookmarks-canvas-camera:v1");
-      } catch {
-        /* ignore */
-      }
+      // Clear the saved tldraw canvas so it re-seeds from the fresh grid.
+      await fetch("/api/bookmarks/canvas", { method: "DELETE" }).catch(() => {});
+      setCanvasState(null);
 
       const listRes = await fetch("/api/bookmarks");
       const listData = await listRes.json();
@@ -257,13 +276,13 @@ export default function BookmarksClient({
           </p>
         </div>
       ) : (
-        <BookmarksCanvas
+        <BookmarksTldrawCanvas
           key={canvasKey}
           items={visible}
+          initialSnapshot={(canvasState as TLStoreSnapshot | null) ?? null}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
-          onPositionChange={persistPosition}
-          forceMasonry={canvasKey > 0}
+          onPasteUrl={handlePasteUrl}
         />
       )}
     </div>

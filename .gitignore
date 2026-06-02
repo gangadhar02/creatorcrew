@@ -10,3 +10,8 @@ media/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Claude Code / agent harness artifacts (local only)
+.agents/
+.claude/skills/
+skills-lock.json

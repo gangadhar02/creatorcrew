@@ -51,7 +51,7 @@ const TOP_NAV: {
   icon: React.ComponentType<{ className?: string }>;
   badge?: "onboarding";
 }[] = [
-  { href: "/", label: "Home", icon: Home, badge: "onboarding" },
+  { href: "/home", label: "Home", icon: Home, badge: "onboarding" },
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/chat", label: "Chat", icon: MessageCircle },
 ];
@@ -219,8 +219,8 @@ export default function Sidebar({
           {TOP_NAV.map((item) => {
             const Icon = item.icon;
             const active =
-              item.href === "/"
-                ? pathname === "/"
+              item.href === "/home"
+                ? pathname === "/home"
                 : pathname.startsWith(item.href);
             const showBadge =
               item.badge === "onboarding" &&

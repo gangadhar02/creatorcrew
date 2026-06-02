@@ -9,6 +9,7 @@ export default async function BookmarksPage() {
   const ws = await getWorkspaceContext();
   let items: BookmarkItem[] = [];
   let schemaReady = true;
+  let canvasState: unknown = null;
 
   if (ws.workspaceId) {
     const sb = getSupabase();
@@ -28,6 +29,14 @@ export default async function BookmarksPage() {
     } else {
       items = (data || []) as BookmarkItem[];
     }
+
+    // tldraw canvas snapshot (migration_022). Table may not exist yet — ignore.
+    const { data: canvasRow } = await sb
+      .from("bookmark_canvas")
+      .select("canvas_state")
+      .eq("workspace_id", ws.workspaceId)
+      .maybeSingle();
+    canvasState = canvasRow?.canvas_state ?? null;
   }
 
   return (
@@ -42,7 +51,11 @@ export default async function BookmarksPage() {
           card.
         </p>
       </header>
-      <BookmarksClient initialItems={items} schemaReady={schemaReady} />
+      <BookmarksClient
+        initialItems={items}
+        schemaReady={schemaReady}
+        initialCanvasState={canvasState}
+      />
     </div>
   );
 }

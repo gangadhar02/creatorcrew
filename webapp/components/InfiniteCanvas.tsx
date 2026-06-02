@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -112,15 +112,19 @@ function CanvasInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
-  const nodesRef = useRef<Node[]>(initialNodes);
-  // Keep ref in sync when items prop changes.
+  // Nodes MUST live in state (not a ref): React Flow drives drag by emitting
+  // `position` changes through onNodesChange, and the node only follows the
+  // cursor if applying those changes triggers a re-render. A ref mutation
+  // doesn't, which made tiles snap to their final spot only on release.
+  const [nodes, setNodes] = useState<Node[]>(initialNodes);
+  // Re-sync when the items prop changes (add/delete/saved position).
   useEffect(() => {
-    nodesRef.current = initialNodes;
+    setNodes(initialNodes);
   }, [initialNodes]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      nodesRef.current = applyNodeChanges(changes, nodesRef.current);
+      setNodes((nds) => applyNodeChanges(changes, nds));
       for (const ch of changes) {
         if (ch.type === "position" && ch.position && !ch.dragging) {
           const id = ch.id;
@@ -143,7 +147,7 @@ function CanvasInner({
   return (
     <div className="h-[calc(100vh-200px)] min-h-[480px] rounded-lg border bg-card">
       <ReactFlow
-        nodes={nodesRef.current}
+        nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         nodeTypes={NODE_TYPES}

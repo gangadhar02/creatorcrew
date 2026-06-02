@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import type { Board } from "@/lib/types-boards";
 import type { ExpandedBoardItem } from "@/app/boards/[id]/page";
 import BoardItemTile from "./BoardItemTile";
-import InfiniteCanvas from "./InfiniteCanvas";
+import BoardCanvas from "./board/BoardCanvas";
+import type { TLStoreSnapshot } from "tldraw";
 
 export default function BoardClient({
   board,
@@ -28,25 +29,17 @@ export default function BoardClient({
   });
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Re-sync the item list when the server re-renders after router.refresh()
+  // (add post/card/document/file). Tile layout lives in the tldraw snapshot,
+  // not here, so replacing the list just adds/removes which tiles exist.
+  useEffect(() => {
+    setItems(initialItems);
+  }, [initialItems]);
+
   function switchView(v: "grid" | "canvas") {
     setViewMode(v);
     try {
       window.localStorage.setItem(`board-view:${board.id}`, v);
-    } catch {
-      /* ignore */
-    }
-  }
-
-  async function persistPosition(itemId: string, x: number, y: number) {
-    setItems((arr) =>
-      arr.map((it) => (it.id === itemId ? { ...it, x, y } : it))
-    );
-    try {
-      await fetch(`/api/board-items/${itemId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ x, y }),
-      });
     } catch {
       /* ignore */
     }
@@ -85,12 +78,16 @@ export default function BoardClient({
       }
     }
     function onPaste(e: ClipboardEvent) {
-      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
       const editable =
         tag === "input" ||
         tag === "textarea" ||
-        (e.target as HTMLElement | null)?.isContentEditable;
+        target?.isContentEditable;
       if (editable) return;
+      // Pastes inside the tldraw canvas are handled by the canvas itself
+      // (BoardCanvas.onPasteUrl) — don't double-add here.
+      if (target?.closest?.(".tl-container")) return;
       const text = e.clipboardData?.getData("text") || "";
       if (text.startsWith("http")) {
         e.preventDefault();
@@ -343,12 +340,13 @@ export default function BoardClient({
             </button>
           </div>
           {viewMode === "canvas" ? (
-            <InfiniteCanvas
+            <BoardCanvas
               boardId={board.id}
-              workspaceId={board.workspace_id || "default"}
               items={visibleItems}
+              initialSnapshot={
+                (board.canvas_state as TLStoreSnapshot | null) ?? null
+              }
               onDelete={deleteItem}
-              onPositionChange={persistPosition}
             />
           ) : (
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

@@ -8,7 +8,15 @@ import { getSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
-const ALLOWED = ["name", "description", "color", "icon", "voice_id", "position"];
+const ALLOWED = [
+  "name",
+  "description",
+  "color",
+  "icon",
+  "voice_id",
+  "position",
+  "canvas_state",
+];
 
 export async function GET(
   _req: NextRequest,

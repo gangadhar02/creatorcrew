@@ -18,6 +18,9 @@ export interface Board {
   position: number;
   created_at: string;
   updated_at: string;
+  // tldraw whiteboard document snapshot (migration_022). Typed loosely here to
+  // avoid importing tldraw types into shared type defs.
+  canvas_state: unknown | null;
 }
 
 export interface Card {
@@ -59,4 +62,9 @@ export interface BoardItem {
   document_id: string | null;
   file_id: string | null;
   created_at: string;
+  // Canvas geometry (migration_016). Used to seed tldraw content tiles.
+  x: number | null;
+  y: number | null;
+  w: number | null;
+  h: number | null;
 }

@@ -43,6 +43,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  /* Marketing landing accent + display font (values scoped via .drafts-landing). */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --font-display: var(--font-bricolage);
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-card: var(--card);
@@ -243,4 +247,69 @@ html.sidebar-collapsed aside[data-role="app-sidebar"] .sidebar-nav-link > span {
   kbd {
     @apply rounded border bg-card px-1 py-0 text-[10px] font-mono text-muted-foreground;
   }
+}
+
+/* ==========================================================================
+   Marketing landing page (drafts.com "/") — scoped design tokens.
+   The Lovable-designed landing keeps its own Drafts palette + fonts without
+   affecting the rest of the app. Applied via the `.drafts-landing` wrapper in
+   app/page.tsx. Must come AFTER :root so it wins by source order in light mode.
+   ========================================================================== */
+.drafts-landing {
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.002 95);
+  --foreground: oklch(0.18 0.01 270);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.01 270);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.01 270);
+  --primary: oklch(0.18 0.01 270);
+  --primary-foreground: oklch(0.985 0.002 95);
+  --secondary: oklch(0.96 0.005 270);
+  --secondary-foreground: oklch(0.18 0.01 270);
+  --muted: oklch(0.96 0.005 270);
+  --muted-foreground: oklch(0.5 0.01 270);
+  --accent: oklch(0.96 0.005 270);
+  --accent-foreground: oklch(0.18 0.01 270);
+  --destructive: oklch(0.6 0.22 27);
+  --destructive-foreground: oklch(0.985 0.002 95);
+  --border: oklch(0.18 0.01 270 / 0.08);
+  --input: oklch(0.18 0.01 270 / 0.12);
+  --ring: oklch(0.72 0.18 50);
+  --brand: oklch(0.72 0.18 50);
+  --brand-foreground: oklch(0.99 0.005 90);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+.dark .drafts-landing {
+  --background: oklch(0.14 0.005 270);
+  --foreground: oklch(0.97 0.005 90);
+  --card: oklch(0.18 0.006 270);
+  --card-foreground: oklch(0.97 0.005 90);
+  --popover: oklch(0.18 0.006 270);
+  --popover-foreground: oklch(0.97 0.005 90);
+  --primary: oklch(0.97 0.005 90);
+  --primary-foreground: oklch(0.14 0.005 270);
+  --secondary: oklch(0.22 0.008 270);
+  --secondary-foreground: oklch(0.97 0.005 90);
+  --muted: oklch(0.22 0.008 270);
+  --muted-foreground: oklch(0.68 0.01 270);
+  --accent: oklch(0.22 0.008 270);
+  --accent-foreground: oklch(0.97 0.005 90);
+  --destructive: oklch(0.65 0.2 22);
+  --destructive-foreground: oklch(0.97 0.005 90);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.72 0.18 50);
+  --brand: oklch(0.74 0.18 50);
+  --brand-foreground: oklch(0.14 0.005 270);
+}
+
+.drafts-landing .font-display {
+  letter-spacing: -0.02em;
+}
+
+.drafts-landing .dot-grid {
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1px);
+  background-size: 24px 24px;
 }

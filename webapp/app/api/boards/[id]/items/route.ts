@@ -9,6 +9,11 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
+import {
+  detectPlatform,
+  ingestInstagramPostByUrl,
+} from "@/lib/ingest/post-by-url";
 
 export const runtime = "nodejs";
 
@@ -27,6 +32,8 @@ export async function POST(
     file_id?: string;
     url?: string;
     tag?: string;
+    x?: number;
+    y?: number;
   };
   if (!body.kind)
     return NextResponse.json({ error: "kind required" }, { status: 400 });
@@ -49,6 +56,9 @@ export async function POST(
     position: nextPos,
     tag: body.tag || null,
   };
+  // Optional canvas placement (e.g. where a URL was pasted on the tldraw canvas).
+  if (typeof body.x === "number") row.x = Math.round(body.x);
+  if (typeof body.y === "number") row.y = Math.round(body.y);
 
   if (body.kind === "post") {
     if (body.creator_post_id) {
@@ -64,13 +74,62 @@ export async function POST(
       if (existingId) {
         row.creator_post_id = existingId;
       } else {
-        return NextResponse.json(
-          {
-            error:
-              "Pasting raw URLs that aren't in creator_posts yet isn't supported in Phase 9 — use Discover to add the creator first.",
-          },
-          { status: 400 }
-        );
+        // Not cached yet — ingest the post from its URL on demand.
+        const platform = detectPlatform(body.url);
+        if (platform !== "instagram") {
+          return NextResponse.json(
+            {
+              error:
+                platform === "x"
+                  ? "X/Twitter links aren't supported yet — paste an Instagram post or reel link."
+                  : "Unrecognized link. Paste an Instagram post or reel URL.",
+            },
+            { status: 400 }
+          );
+        }
+
+        // Attach the new creator to the board's workspace (fall back to auth).
+        const { data: boardRow } = await sb
+          .from("boards")
+          .select("workspace_id")
+          .eq("id", boardId)
+          .maybeSingle();
+        let workspaceId =
+          (boardRow as { workspace_id: string | null } | null)?.workspace_id ??
+          null;
+        if (!workspaceId) {
+          const ws = await getWorkspaceContext();
+          workspaceId = ws.workspaceId;
+        }
+        if (!workspaceId) {
+          return NextResponse.json(
+            { error: "No workspace to attach the post to." },
+            { status: 400 }
+          );
+        }
+
+        try {
+          const ingested = await ingestInstagramPostByUrl(workspaceId, body.url);
+          if (!ingested) {
+            return NextResponse.json(
+              {
+                error:
+                  "Couldn't fetch that post — it may be private, removed, or not a public Instagram post.",
+              },
+              { status: 502 }
+            );
+          }
+          row.creator_post_id = ingested.creatorPostId;
+        } catch (e) {
+          return NextResponse.json(
+            {
+              error: `Couldn't add post: ${
+                e instanceof Error ? e.message : String(e)
+              }`,
+            },
+            { status: 502 }
+          );
+        }
       }
     } else {
       return NextResponse.json(

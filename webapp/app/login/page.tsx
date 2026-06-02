@@ -15,7 +15,7 @@ export default async function LoginPage({
     data: { user },
   } = await supabase.auth.getUser();
   const sp = await searchParams;
-  if (user) redirect(sp.next || "/");
+  if (user) redirect(sp.next || "/home");
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">

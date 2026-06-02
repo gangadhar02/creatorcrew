@@ -64,7 +64,17 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isPublic = PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p));
+  // "/" is the public marketing landing page. Everything else (except the
+  // /login + /auth prefixes) requires auth.
+  const isPublic =
+    pathname === "/" || PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p));
+
+  // Logged-in users don't need the marketing page — send them to the app home.
+  if (user && pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/home";
+    return NextResponse.redirect(url);
+  }
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

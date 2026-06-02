@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Inter, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { getSupabase } from "@/lib/supabase";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import AgentationDev from "@/components/AgentationDev";
 
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+// Fonts for the marketing landing page (scoped via .drafts-landing).
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
 });
 
@@ -74,7 +81,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${bricolage.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
@@ -105,6 +112,7 @@ export default async function RootLayout({
             <main className="min-h-screen animate-page-in">{children}</main>
           )}
           <Toaster richColors closeButton position="bottom-right" />
+          {process.env.NODE_ENV === "development" && <AgentationDev />}
         </TooltipProvider>
       </body>
     </html>

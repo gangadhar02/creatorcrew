@@ -168,3 +168,56 @@ export async function fetchProfileAndPostsApify(
 
   return { profile, items };
 }
+
+// ---------------------------------------------------------------------------
+// Public: single post by permalink
+// ---------------------------------------------------------------------------
+/**
+ * Fetch ONE Instagram post by its permalink (instagram.com/p/<code>/ or
+ * /reel/<code>/). Returns the post mapped to IGMediaItem plus the owner's
+ * profile fields (via addParentData), or null if the actor returned no post
+ * (private/removed). Used to ingest a pasted URL on demand.
+ */
+export async function fetchPostByUrlApify(
+  postUrl: string
+): Promise<{ profile: IGProfile; item: IGMediaItem } | null> {
+  if (!isApifyConfigured()) {
+    throw new Error("Apify not configured. Set APIFY_API_TOKEN.");
+  }
+  const input = {
+    directUrls: [postUrl],
+    resultsType: "posts",
+    resultsLimit: 1,
+    addParentData: true,
+  };
+
+  const data = (await runActor(input)) as ApifyPost[];
+
+  const errored = data.find((d) => d && d.error && !d.shortCode);
+  if (errored?.error) {
+    throw new Error(`Apify error: ${errored.error}`);
+  }
+
+  const post = data.find((d) => d && d.shortCode);
+  if (!post) return null;
+
+  const ownerUsername = (post.ownerUsername || post.username || "")
+    .replace(/^@/, "")
+    .toLowerCase();
+  const ownerId = String(post.ownerId || "");
+
+  const profile: IGProfile = {
+    id: ownerId,
+    username: ownerUsername,
+    full_name: post.fullName || "",
+    biography: post.biography || "",
+    follower_count: post.followersCount || 0,
+    following_count: post.followsCount || 0,
+    media_count: post.postsCount || 0,
+    is_verified: !!post.verified,
+    profile_pic_url: post.profilePicUrlHD || post.profilePicUrl || "",
+  };
+
+  const item = mapPost(post, ownerUsername, ownerId);
+  return { profile, item };
+}

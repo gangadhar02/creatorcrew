@@ -59,7 +59,7 @@ export default function LoginForm({
       if (error) throw error;
       // Session cookie is now set — hard-navigate so server components
       // re-render with the new auth state (proxy refreshes on next req).
-      window.location.href = next || "/";
+      window.location.href = next || "/home";
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
