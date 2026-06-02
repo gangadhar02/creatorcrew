@@ -21,6 +21,7 @@ export default async function IdeaDetail({
     .from("content_ideas")
     .select("*")
     .eq("id", id)
+    .eq("workspace_id", ws.workspaceId)
     .maybeSingle();
   const idea = data as ContentIdea | null;
 

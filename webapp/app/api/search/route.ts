@@ -57,11 +57,13 @@ export async function GET(request: NextRequest) {
     sb
       .from("content_ideas")
       .select("id, name, angle, pillar")
+      .eq("workspace_id", ws.workspaceId)
       .or(`name.ilike.${like},angle.ilike.${like}`)
       .limit(limit),
     sb
       .from("profiles")
       .select("id, ig_handle, display_name, bio")
+      .eq("workspace_id", ws.workspaceId)
       .or(
         `ig_handle.ilike.${like},display_name.ilike.${like},bio.ilike.${like}`
       )

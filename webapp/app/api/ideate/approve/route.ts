@@ -23,6 +23,7 @@ function mondayOfThisWeek(): string {
 
 export async function POST(request: NextRequest) {
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
   const body = (await request.json()) as {
     save_id: string;
     idea: IdeaProposal;
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
   }
   const i = body.idea;
   const row = {
+    workspace_id: ws.workspaceId,
     save_id: body.save_id,
     voice_id: body.voice_id || null,
     name: i.name,
@@ -59,7 +61,6 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  const ws = await getWorkspaceContext();
   await sb
     .from("saves")
     .update({ status: "Used" })

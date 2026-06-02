@@ -132,11 +132,13 @@ export async function runProfileAnalysis(opts: {
   const cap = Math.max(1, Math.min(opts.cap ?? DEFAULT_PROFILE_CAP, 500));
   const sb = getSupabase();
 
-  // Mark / create profile row as syncing.
+  // Mark / create profile row as syncing — scoped to this workspace so each
+  // workspace keeps its own analysis of a given handle.
   const existing = await sb
     .from("profiles")
     .select("id")
     .eq("ig_handle", handle)
+    .eq("workspace_id", opts.workspaceId)
     .maybeSingle();
   let profileId: string;
   if (existing.data) {
@@ -148,7 +150,11 @@ export async function runProfileAnalysis(opts: {
   } else {
     const ins = await sb
       .from("profiles")
-      .insert({ ig_handle: handle, sync_status: "syncing" })
+      .insert({
+        ig_handle: handle,
+        sync_status: "syncing",
+        workspace_id: opts.workspaceId,
+      })
       .select("id")
       .single();
     if (ins.error || !ins.data) {
@@ -174,6 +180,7 @@ export async function runProfileAnalysis(opts: {
     }
     const rows = normalized.map((p) => ({
       profile_id: profileId,
+      workspace_id: opts.workspaceId,
       media_pk: p.media_pk,
       code: p.code,
       url: p.url,

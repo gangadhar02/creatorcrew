@@ -7,6 +7,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 
@@ -44,7 +45,12 @@ export async function PATCH(
     return NextResponse.json({ error: "no allowed fields in body" }, { status: 400 });
   }
   const sb = getSupabase();
-  const { error } = await sb.from("content_ideas").update(update).eq("id", id);
+  const ws = await getWorkspaceContext();
+  const { error } = await sb
+    .from("content_ideas")
+    .update(update)
+    .eq("id", id)
+    .eq("workspace_id", ws.workspaceId);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

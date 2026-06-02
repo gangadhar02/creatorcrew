@@ -128,10 +128,14 @@ export default async function Dashboard() {
 
   const [savesRes, ideasRes, runsRes] = await Promise.all([
     sb.from("saves").select("status").eq("workspace_id", ws.workspaceId),
-    sb.from("content_ideas").select("status"),
+    sb
+      .from("content_ideas")
+      .select("status")
+      .eq("workspace_id", ws.workspaceId),
     sb
       .from("sync_runs")
       .select("*")
+      .eq("workspace_id", ws.workspaceId)
       .order("started_at", { ascending: false })
       .limit(5),
   ]);

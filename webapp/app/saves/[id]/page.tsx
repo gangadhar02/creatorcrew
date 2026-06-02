@@ -29,7 +29,8 @@ export default async function SaveDetail({
   const { data: ideas } = await sb
     .from("content_ideas")
     .select("id, name, pillar, priority, status")
-    .eq("save_id", id);
+    .eq("save_id", id)
+    .eq("workspace_id", ws.workspaceId);
 
   return (
     <div className="space-y-8">

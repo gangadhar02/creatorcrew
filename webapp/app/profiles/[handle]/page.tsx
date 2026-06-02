@@ -58,10 +58,12 @@ export default async function ProfileDetail({
   const q = sp.q || "";
 
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
   const { data: profileData } = await sb
     .from("profiles")
     .select("*")
     .eq("ig_handle", handle.toLowerCase())
+    .eq("workspace_id", ws.workspaceId)
     .maybeSingle();
   if (!profileData) notFound();
   const profile = profileData as {
@@ -119,7 +121,6 @@ export default async function ProfileDetail({
 
   // Map each profile_posts row to its dual-written creator_posts id so the
   // card's Chat / Add-to-board actions (which operate on creator_posts) work.
-  const ws = await getWorkspaceContext();
   const mediaPks = posts.map((p) => p.media_pk).filter(Boolean);
   if (ws.workspaceId && mediaPks.length > 0) {
     const { data: creatorRows } = await sb

@@ -4,6 +4,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { runGeminiOnMedia, POST_VISION_PROMPT } from "@/lib/gemini-media";
 import { mirrorVisionToCreatorPost } from "@/lib/dual-write";
 
@@ -16,10 +17,12 @@ export async function POST(
 ) {
   const { id } = await ctx.params;
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
   const { data } = await sb
     .from("profile_posts")
     .select("id, media_pk")
     .eq("id", id)
+    .eq("workspace_id", ws.workspaceId)
     .maybeSingle();
   const post = data as { id: string; media_pk: string } | null;
   if (!post) {

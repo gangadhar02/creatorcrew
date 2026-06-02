@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import AnalyzeProfileForm from "@/components/AnalyzeProfileForm";
 import { igImg } from "@/lib/proxy-image";
 
@@ -30,11 +31,13 @@ function fmtNum(n: number | null | undefined): string {
 
 export default async function ProfilesPage() {
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
   const { data } = await sb
     .from("profiles")
     .select(
       "id, ig_handle, display_name, bio, follower_count, post_count, profile_pic_url, is_verified, typical_reel_views, typical_post_likes, analyzed_at, sync_status, sync_error"
     )
+    .eq("workspace_id", ws.workspaceId)
     .order("analyzed_at", { ascending: false, nullsFirst: false });
   const profiles = (data || []) as ProfileRow[];
 

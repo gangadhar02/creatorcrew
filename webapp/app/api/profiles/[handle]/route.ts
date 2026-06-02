@@ -4,6 +4,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 
@@ -13,10 +14,12 @@ export async function DELETE(
 ) {
   const { handle } = await ctx.params;
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
   const { error } = await sb
     .from("profiles")
     .delete()
-    .eq("ig_handle", handle.toLowerCase());
+    .eq("ig_handle", handle.toLowerCase())
+    .eq("workspace_id", ws.workspaceId);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -429,10 +429,13 @@ def main() -> None:
     cfg = load_config()
     sb = make_supabase()
 
+    # Resolve the workspace up front so the sync_runs row + saves are scoped.
+    workspace_id = get_workspace_id(sb)
+
     # Open a sync_runs row
     run = (
         sb.table("sync_runs")
-        .insert({"status": "running"})
+        .insert({"status": "running", "workspace_id": workspace_id})
         .execute()
     )
     run_id = run.data[0]["id"]
@@ -440,7 +443,6 @@ def main() -> None:
 
     try:
         existing = fetch_existing_pks(sb, log)
-        workspace_id = get_workspace_id(sb)
         if workspace_id:
             log.info(f"Dual-writing to creator_posts (workspace={workspace_id[:8]}…)")
         else:

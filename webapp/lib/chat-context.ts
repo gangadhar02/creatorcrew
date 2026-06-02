@@ -180,6 +180,7 @@ ${cp.vision_analysis_md ? `\n## Vision analysis\n${cp.vision_analysis_md}` : ""}
       .from("content_ideas")
       .select("*")
       .eq("id", chat.context_id)
+      .eq("workspace_id", chat.workspace_id)
       .maybeSingle();
     if (!data) return "";
     const i = data as Record<string, unknown>;

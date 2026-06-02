@@ -129,6 +129,7 @@ async function handlePost(request: NextRequest) {
       .from("profiles")
       .select("id, last_synced_at, sync_status")
       .eq("ig_handle", handle)
+      .eq("workspace_id", ws.workspaceId)
       .maybeSingle();
     const row = existing.data as
       | { id: string; last_synced_at: string | null; sync_status: string | null }

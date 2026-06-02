@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import StatusBadge from "@/components/StatusBadge";
 import type { ContentIdea } from "@/lib/types";
 
@@ -7,9 +8,11 @@ export const dynamic = "force-dynamic";
 
 export default async function IdeasPage() {
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
   const { data } = await sb
     .from("content_ideas")
     .select("*")
+    .eq("workspace_id", ws.workspaceId)
     .order("created_at", { ascending: false });
   const ideas = (data || []) as ContentIdea[];
 
