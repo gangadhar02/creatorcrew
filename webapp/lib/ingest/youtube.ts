@@ -14,11 +14,7 @@
  *
  * Server-only.
  */
-import {
-  getDefaultWorkspaceId,
-  upsertCreator,
-  upsertCreatorPost,
-} from "../dual-write";
+import { upsertCreator, upsertCreatorPost } from "../dual-write";
 
 const API_BASE = "https://www.googleapis.com/youtube/v3";
 
@@ -210,9 +206,10 @@ export type YouTubeIngestResult = {
 
 export async function ingestYouTubeChannel(
   input: string,
+  workspaceId: string,
   opts: { maxVideos?: number } = {}
 ): Promise<YouTubeIngestResult> {
-  const wsId = await getDefaultWorkspaceId();
+  const wsId = workspaceId;
   if (!wsId) throw new Error("No workspace configured");
   const maxVideos = Math.max(1, Math.min(opts.maxVideos ?? 50, 200));
 

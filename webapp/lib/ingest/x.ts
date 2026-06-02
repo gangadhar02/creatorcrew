@@ -5,11 +5,7 @@
  *
  * Server-only.
  */
-import {
-  getDefaultWorkspaceId,
-  upsertCreator,
-  upsertCreatorPost,
-} from "../dual-write";
+import { upsertCreator, upsertCreatorPost } from "../dual-write";
 import {
   getUserByUsername,
   getUserTweets,
@@ -100,6 +96,7 @@ export type XIngestResult = {
 /** Fetch a user's recent posts and upsert into creators + creator_posts. */
 export async function ingestXUser(
   input: string,
+  workspaceId: string,
   opts: { maxPosts?: number } = {}
 ): Promise<XIngestResult> {
   if (!xConfigured()) {
@@ -108,7 +105,7 @@ export async function ingestXUser(
     );
   }
 
-  const wsId = await getDefaultWorkspaceId();
+  const wsId = workspaceId;
   if (!wsId) throw new Error("No workspace configured");
 
   const maxPosts = Math.max(5, Math.min(opts.maxPosts ?? 50, 100));

@@ -14,6 +14,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ingestYouTubeChannel } from "@/lib/ingest/youtube";
 import { ingestSubstackPublication } from "@/lib/ingest/substack";
 import { ingestXUser } from "@/lib/ingest/x";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,25 +35,41 @@ export async function POST(
     return NextResponse.json({ error: "handle required" }, { status: 400 });
   }
 
+  // Scope ingest to the caller's workspace (service-role bypasses RLS).
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     if (platform === "youtube") {
-      const r = await ingestYouTubeChannel(handle, { maxVideos: body.maxItems });
+      const r = await ingestYouTubeChannel(handle, ws.workspaceId, {
+        maxVideos: body.maxItems,
+      });
       return NextResponse.json({ ok: true, ...r });
     }
     if (platform === "substack") {
-      const r = await ingestSubstackPublication(handle, { maxItems: body.maxItems });
+      const r = await ingestSubstackPublication(handle, ws.workspaceId, {
+        maxItems: body.maxItems,
+      });
       return NextResponse.json({ ok: true, ...r });
     }
     if (platform === "x" || platform === "twitter") {
-      const r = await ingestXUser(handle, { maxPosts: body.maxItems });
+      const r = await ingestXUser(handle, ws.workspaceId, {
+        maxPosts: body.maxItems,
+      });
       return NextResponse.json({ ok: true, ...r });
     }
     if (platform === "instagram") {
-      // Reuse the existing analyze endpoint
+      // Reuse the existing analyze endpoint. Forward the request cookie so
+      // getWorkspaceContext() resolves the same workspace on the sub-request.
       const url = new URL("/api/profiles/analyze", request.url);
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          cookie: request.headers.get("cookie") ?? "",
+        },
         body: JSON.stringify({ handle, maxPosts: body.maxItems }),
       });
       const data = await res.json();

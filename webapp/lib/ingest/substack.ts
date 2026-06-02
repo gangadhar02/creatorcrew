@@ -13,11 +13,7 @@
  * Server-only. Uses native fetch + minimal regex-based XML parsing
  * (Substack feeds are well-structured so this is safe).
  */
-import {
-  getDefaultWorkspaceId,
-  upsertCreator,
-  upsertCreatorPost,
-} from "../dual-write";
+import { upsertCreator, upsertCreatorPost } from "../dual-write";
 
 function resolveFeedUrl(input: string): { feedUrl: string; siteOrigin: string; handle: string } {
   const raw = input.trim().replace(/^@/, "");
@@ -128,9 +124,10 @@ export type SubstackIngestResult = {
 
 export async function ingestSubstackPublication(
   input: string,
+  workspaceId: string,
   opts: { maxItems?: number } = {}
 ): Promise<SubstackIngestResult> {
-  const wsId = await getDefaultWorkspaceId();
+  const wsId = workspaceId;
   if (!wsId) throw new Error("No workspace configured");
   const maxItems = Math.max(1, Math.min(opts.maxItems ?? 50, 200));
 

@@ -6,6 +6,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { syncAllBookmarks } from "@/lib/bookmarks-store";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,8 +18,13 @@ export async function POST(request: NextRequest) {
     autoTag?: boolean;
   };
 
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const result = await syncAllBookmarks({
+    const result = await syncAllBookmarks(ws.workspaceId, {
       maxPerPlatform: body.maxPerPlatform,
       autoTag: body.autoTag,
     });
