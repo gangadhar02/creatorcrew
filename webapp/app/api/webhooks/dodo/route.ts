@@ -1,66 +1,38 @@
 /**
  * POST /api/webhooks/dodo — Dodo Payments subscription webhook.
  *
- * Verifies the Standard Webhooks signature, then on activation/renewal/payment
- * grants the plan to the matching user (mapped by metadata.user_id, falling
- * back to customer email), and on hold/failure marks it inactive. The plan is
- * stored in Supabase auth user_metadata: { plan, plan_status, dodo_* }.
+ * Verifies the Standard Webhooks signature (via the `standardwebhooks` lib that
+ * Dodo recommends), then on activation/renewal/payment grants the plan to the
+ * matching user (mapped by metadata.user_id, falling back to customer email),
+ * and on hold/cancel/fail marks it inactive. The plan is stored in Supabase auth
+ * user_metadata: { plan, plan_status, dodo_* }.
  *
  * Setup:
- *   - In the Dodo dashboard add a webhook to
+ *   - Dodo dashboard → Webhooks → add
  *       https://studio.creatorcrew.app/api/webhooks/dodo
- *     and copy its signing secret into env DODO_WEBHOOK_SECRET.
+ *     and copy its signing secret into env DODO_PAYMENTS_WEBHOOK_KEY.
  *
- * NOTE: the exact payload field paths below are best-effort and should be
- * confirmed against a real Dodo event (log `event` once and adjust if needed).
+ * Payload shape (per Dodo docs): { business_id, type, timestamp, data }, where
+ * `data` is the subscription/payment object. Confirm field paths against a real
+ * test event the first time (the handler logs unmatched users).
  */
 import { NextResponse, type NextRequest } from "next/server";
-import crypto from "node:crypto";
+import { Webhook } from "standardwebhooks";
 import { getSupabase } from "@/lib/supabase";
 import { planForProduct, type PlanId } from "@/lib/billing";
 
 export const runtime = "nodejs";
 
-/** Standard Webhooks: signed content is `${id}.${timestamp}.${body}`, HMAC-SHA256. */
-function verifySignature(
-  rawBody: string,
-  headers: Headers,
-  secret: string
-): boolean {
-  const id = headers.get("webhook-id");
-  const ts = headers.get("webhook-timestamp");
-  const sigHeader = headers.get("webhook-signature");
-  if (!id || !ts || !sigHeader) return false;
-
-  const key = secret.startsWith("whsec_")
-    ? Buffer.from(secret.slice(6), "base64")
-    : Buffer.from(secret, "base64");
-  const expected = crypto
-    .createHmac("sha256", key)
-    .update(`${id}.${ts}.${rawBody}`)
-    .digest("base64");
-
-  // Header is space-separated "v1,<sig>" pairs.
-  return sigHeader.split(" ").some((part) => {
-    const sig = part.includes(",") ? part.split(",")[1] : part;
-    try {
-      return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
-    } catch {
-      return false;
-    }
-  });
-}
-
 type DodoEvent = {
   type?: string;
   data?: {
-    customer?: { email?: string };
-    email?: string;
-    metadata?: Record<string, string>;
+    subscription_id?: string;
+    payment_id?: string;
+    status?: string;
     product_id?: string;
     product_cart?: { product_id?: string }[];
-    subscription_id?: string;
-    customer_id?: string;
+    metadata?: Record<string, string>;
+    customer?: { customer_id?: string; email?: string; name?: string };
   };
 };
 
@@ -71,40 +43,45 @@ const ACTIVE_EVENTS = new Set([
 ]);
 const INACTIVE_EVENTS = new Set([
   "subscription.on_hold",
+  "subscription.cancelled",
   "subscription.failed",
+  "subscription.expired",
   "payment.failed",
 ]);
 
 export async function POST(request: NextRequest) {
-  const secret = process.env.DODO_WEBHOOK_SECRET;
+  const secret =
+    process.env.DODO_PAYMENTS_WEBHOOK_KEY || process.env.DODO_WEBHOOK_SECRET;
   if (!secret) {
     return NextResponse.json(
-      { error: "DODO_WEBHOOK_SECRET not configured" },
+      { error: "DODO_PAYMENTS_WEBHOOK_KEY not configured" },
       { status: 500 }
     );
   }
 
   const rawBody = await request.text();
-  if (!verifySignature(rawBody, request.headers, secret)) {
-    return NextResponse.json({ error: "invalid signature" }, { status: 401 });
-  }
 
   let event: DodoEvent;
   try {
-    event = JSON.parse(rawBody) as DodoEvent;
+    const wh = new Webhook(secret);
+    event = wh.verify(rawBody, {
+      "webhook-id": request.headers.get("webhook-id") ?? "",
+      "webhook-signature": request.headers.get("webhook-signature") ?? "",
+      "webhook-timestamp": request.headers.get("webhook-timestamp") ?? "",
+    }) as DodoEvent;
   } catch {
-    return NextResponse.json({ error: "bad json" }, { status: 400 });
+    return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 
   const type = event.type || "";
   const data = event.data || {};
-  const email = data.customer?.email || data.email || null;
-  const userId = data.metadata?.user_id || null;
+  const email = data.customer?.email ?? null;
+  const userId = data.metadata?.user_id ?? null;
 
   if (ACTIVE_EVENTS.has(type)) {
     const productId = data.product_id || data.product_cart?.[0]?.product_id;
     const plan =
-      planForProduct(productId) ||
+      planForProduct(productId) ??
       ((data.metadata?.plan as PlanId | undefined) ?? null);
     await setEntitlement({
       userId,
@@ -112,7 +89,7 @@ export async function POST(request: NextRequest) {
       plan,
       status: "active",
       subscriptionId: data.subscription_id,
-      customerId: data.customer_id,
+      customerId: data.customer?.customer_id,
     });
   } else if (INACTIVE_EVENTS.has(type)) {
     await setEntitlement({ userId, email, plan: null, status: "inactive" });
