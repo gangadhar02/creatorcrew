@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import StatusBadge from "@/components/StatusBadge";
 import SavesRealtime from "@/components/SavesRealtime";
 import type { SaveStatus, SaveType } from "@/lib/types";
@@ -23,10 +24,12 @@ export default async function SavesPage({
 }) {
   const sp = await searchParams;
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
 
   let query = sb
     .from("saves")
     .select("*")
+    .eq("workspace_id", ws.workspaceId)
     .order("saved_at", { ascending: false })
     .limit(200);
 
@@ -41,6 +44,7 @@ export default async function SavesPage({
   const { data: collections } = await sb
     .from("saves")
     .select("collection_name")
+    .eq("workspace_id", ws.workspaceId)
     .not("collection_name", "is", null);
   const uniqueCollections = Array.from(
     new Set((collections || []).map((c) => c.collection_name).filter(Boolean))

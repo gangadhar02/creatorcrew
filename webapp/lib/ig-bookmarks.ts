@@ -11,7 +11,7 @@ import { getSupabase } from "./supabase";
 import type { BookmarkDraft } from "./types-bookmarks";
 
 export async function fetchInstagramSavedPosts(
-  opts: { maxItems?: number } = {}
+  opts: { maxItems?: number; workspaceId?: string } = {}
 ): Promise<{
   items: BookmarkDraft[];
   mediaEnriched?: number;
@@ -20,11 +20,15 @@ export async function fetchInstagramSavedPosts(
   const maxItems = Math.max(1, Math.min(opts.maxItems ?? 120, 500));
   const sb = getSupabase();
 
-  const { data, error } = await sb
+  let savesQuery = sb
     .from("saves")
     .select("media_pk, url, type, author, caption, collection_name, saved_at, ig_raw_json")
     .order("saved_at", { ascending: false })
     .limit(maxItems);
+  if (opts.workspaceId) {
+    savesQuery = savesQuery.eq("workspace_id", opts.workspaceId);
+  }
+  const { data, error } = await savesQuery;
 
   if (error) return { items: [], warning: error.message };
 

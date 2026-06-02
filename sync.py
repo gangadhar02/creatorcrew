@@ -298,7 +298,12 @@ def normalize_media(item: dict) -> dict | None:
     }
 
 
-def to_supabase_row(post: dict, collection_name: str | None, raw_item: dict) -> dict:
+def to_supabase_row(
+    post: dict,
+    collection_name: str | None,
+    raw_item: dict,
+    workspace_id: str | None = None,
+) -> dict:
     return {
         "media_pk": post["pk"],
         "code": post["code"] or None,
@@ -310,6 +315,9 @@ def to_supabase_row(post: dict, collection_name: str | None, raw_item: dict) -> 
         "status": "New",
         "saved_at": datetime.now(timezone.utc).isoformat(),
         "ig_raw_json": raw_item,
+        # Scope saves to the workspace so other accounts don't see them
+        # (migration_023). Nullable for legacy rows.
+        "workspace_id": workspace_id,
     }
 
 
@@ -498,7 +506,7 @@ def main() -> None:
                 skipped += 1
                 continue
             seen_in_run.add(post["pk"])
-            row = to_supabase_row(post, collection_name, item)
+            row = to_supabase_row(post, collection_name, item, workspace_id)
             try:
                 inserted = sb.table("saves").insert(row).execute()
                 save_id = inserted.data[0]["id"]

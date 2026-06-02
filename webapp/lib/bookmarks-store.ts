@@ -104,7 +104,7 @@ export async function syncAllBookmarks(opts: {
 
   const max = opts.maxPerPlatform ?? 60;
   const [ig, xRes] = await Promise.all([
-    fetchInstagramSavedPosts({ maxItems: max }),
+    fetchInstagramSavedPosts({ maxItems: max, workspaceId: wsId }),
     fetchXBookmarks({ maxItems: max }),
   ]);
 

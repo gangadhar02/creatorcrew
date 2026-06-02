@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import MarkdownView from "@/components/MarkdownView";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -13,11 +14,13 @@ export default async function SaveDetail({
 }) {
   const { id } = await params;
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
 
   const { data: save } = await sb
     .from("saves")
     .select("*")
     .eq("id", id)
+    .eq("workspace_id", ws.workspaceId)
     .maybeSingle();
 
   if (!save) notFound();

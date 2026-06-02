@@ -8,6 +8,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { ideateSave, type IdeaProposal } from "@/lib/ideate";
 import type { Save } from "@/lib/types";
 
@@ -17,6 +18,7 @@ export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
   let bodyJson: { save_ids?: string[]; voice_id?: string | null } = {};
   try {
     bodyJson = await request.json();
@@ -27,6 +29,7 @@ export async function POST(request: NextRequest) {
   let q = sb
     .from("saves")
     .select("*")
+    .eq("workspace_id", ws.workspaceId)
     .order("saved_at", { ascending: true });
   if (bodyJson.save_ids && bodyJson.save_ids.length > 0) {
     q = q.in("id", bodyJson.save_ids);

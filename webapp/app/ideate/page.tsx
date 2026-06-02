@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import type { Save } from "@/lib/types";
 import IdeationFlow from "@/components/IdeationFlow";
 
@@ -7,9 +8,11 @@ export const dynamic = "force-dynamic";
 
 export default async function IdeatePage() {
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
   const { data } = await sb
     .from("saves")
     .select("*")
+    .eq("workspace_id", ws.workspaceId)
     .eq("status", "New")
     .order("saved_at", { ascending: true });
   const newSaves = (data || []) as Save[];

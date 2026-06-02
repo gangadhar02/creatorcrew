@@ -6,6 +6,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
   if (!q) return NextResponse.json({ hits: [] });
 
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
   const like = `%${q}%`;
 
   const [
@@ -49,6 +51,7 @@ export async function GET(request: NextRequest) {
     sb
       .from("saves")
       .select("id, author, caption, type")
+      .eq("workspace_id", ws.workspaceId)
       .or(`caption.ilike.${like},author.ilike.${like}`)
       .limit(limit),
     sb

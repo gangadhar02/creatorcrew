@@ -7,6 +7,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import type { IdeaProposal } from "@/lib/ideate";
 
 export const runtime = "nodejs";
@@ -58,9 +59,11 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  const ws = await getWorkspaceContext();
   await sb
     .from("saves")
     .update({ status: "Used" })
-    .eq("id", body.save_id);
+    .eq("id", body.save_id)
+    .eq("workspace_id", ws.workspaceId);
   return NextResponse.json({ ok: true, idea_id: (data as { id: string }).id });
 }

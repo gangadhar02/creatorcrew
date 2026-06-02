@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import StatusBadge from "@/components/StatusBadge";
 import EditableSection from "@/components/EditableSection";
 import type { ContentIdea } from "@/lib/types";
@@ -14,6 +15,7 @@ export default async function IdeaDetail({
 }) {
   const { id } = await params;
   const sb = getSupabase();
+  const ws = await getWorkspaceContext();
 
   const { data } = await sb
     .from("content_ideas")
@@ -24,13 +26,14 @@ export default async function IdeaDetail({
 
   if (!idea) notFound();
 
-  // Optional source save
+  // Optional source save (scoped to this workspace)
   let sourceSave: { id: string; author: string | null; url: string } | null = null;
   if (idea.save_id) {
     const { data: s } = await sb
       .from("saves")
       .select("id, author, url")
       .eq("id", idea.save_id)
+      .eq("workspace_id", ws.workspaceId)
       .maybeSingle();
     sourceSave = (s as { id: string; author: string | null; url: string } | null) || null;
   }

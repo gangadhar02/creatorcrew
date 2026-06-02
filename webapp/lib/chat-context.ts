@@ -164,6 +164,7 @@ ${p.transcript ? `\n## Transcript\n${(p.transcript as string).slice(0, 4000)}` :
       .from("saves")
       .select("*, creator_post:creator_posts(*, creator:creators(*))")
       .eq("id", chat.context_id)
+      .eq("workspace_id", chat.workspace_id)
       .maybeSingle();
     if (!data) return "";
     const s = data as Record<string, unknown>;

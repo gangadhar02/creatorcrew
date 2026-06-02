@@ -127,7 +127,7 @@ export default async function Dashboard() {
   const sb = getSupabase();
 
   const [savesRes, ideasRes, runsRes] = await Promise.all([
-    sb.from("saves").select("status"),
+    sb.from("saves").select("status").eq("workspace_id", ws.workspaceId),
     sb.from("content_ideas").select("status"),
     sb
       .from("sync_runs")
