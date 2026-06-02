@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ next?: string; error?: string; email?: string }>;
 }) {
   // If already signed in, bounce to home (or wherever they were headed).
   const supabase = await getSupabaseServerClient();
@@ -25,10 +25,10 @@ export default async function LoginPage({
             Welcome to CreatorCrew
           </h1>
           <p className="text-sm text-muted-foreground">
-            Enter your email — we&apos;ll send you a sign-in link.
+            Enter your email — we&apos;ll send you a sign-in code.
           </p>
         </header>
-        <LoginForm next={sp.next} initialError={sp.error} />
+        <LoginForm next={sp.next} initialError={sp.error} initialEmail={sp.email} />
       </div>
     </div>
   );
