@@ -29,10 +29,10 @@ export function EmailCaptureForm({
       return;
     }
     try {
-      const raw = localStorage.getItem("drafts_waitlist");
+      const raw = localStorage.getItem("creatorcrew_waitlist");
       const list: string[] = raw ? JSON.parse(raw) : [];
       if (!list.includes(value)) list.push(value);
-      localStorage.setItem("drafts_waitlist", JSON.stringify(list));
+      localStorage.setItem("creatorcrew_waitlist", JSON.stringify(list));
     } catch {
       /* ignore storage errors */
     }

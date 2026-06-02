@@ -5,10 +5,10 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { q: "What is Drafts?", a: "Your AI creative second brain — it turns saved inspiration into finished content in your voice." },
-  { q: "How does it know my voice?", a: "Drafts analyzes your past content and lets you capture your writing style, then generates ideas and drafts that sound like you." },
+  { q: "What is CreatorCrew?", a: "Your AI creative second brain — it turns saved inspiration into finished content in your voice." },
+  { q: "How does it know my voice?", a: "CreatorCrew analyzes your past content and lets you capture your writing style, then generates ideas and drafts that sound like you." },
   { q: "Do I need to give my Instagram password?", a: "No. You connect or import your saves; we never ask for risky credentials." },
-  { q: "Which platforms does it support?", a: "Instagram today. More platforms are coming — start with Drafts and we'll grow with you." },
+  { q: "Which platforms does it support?", a: "Instagram today. More platforms are coming — start with CreatorCrew and we'll grow with you." },
   { q: "Is there a free plan?", a: "Yes — start free with no credit card. Upgrade when you're ready to ship daily." },
   { q: "Can it write posts for me?", a: "It ideates and drafts in your voice; you always stay in control of the final post." },
 ];

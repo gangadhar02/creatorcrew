@@ -35,7 +35,7 @@ export default async function VoiceLibrary() {
         <div>
           <h1 className="text-3xl font-semibold">Voice</h1>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            Your intellectual signature. Every AI generation in Saves Engine
+            Your intellectual signature. Every AI generation in CreatorCrew
             uses the voice you pick.
           </p>
         </div>

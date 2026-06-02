@@ -14,20 +14,20 @@ import { FinalCta } from "@/components/marketing/FinalCta";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Drafts — Your AI creative second brain",
+  title: "CreatorCrew — Your AI creative second brain",
   description:
-    "Turn everything you save into your next post. Drafts learns your taste and helps you ideate, plan, and write — in your own voice.",
+    "Turn everything you save into your next post. CreatorCrew learns your taste and helps you ideate, plan, and write — in your own voice.",
 };
 
 /**
  * Public marketing landing page at "/". Logged-in users are redirected to
- * /home by the proxy. The `.drafts-landing` wrapper scopes the Drafts design
+ * /home by the proxy. The `.creatorcrew-landing` wrapper scopes the CreatorCrew design
  * tokens (defined in globals.css) so the landing keeps its own look without
  * affecting the rest of the app.
  */
 export default function LandingPage() {
   return (
-    <div className="drafts-landing min-h-screen bg-background text-foreground">
+    <div className="creatorcrew-landing min-h-screen bg-background text-foreground">
       <Nav />
       <main>
         <Hero />

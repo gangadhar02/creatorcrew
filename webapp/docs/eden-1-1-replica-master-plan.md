@@ -2,7 +2,7 @@
 
 ## Context
 
-This is the plan to take **Saves Engine** (our IG Saves → ideation app at `webapp/` running on `localhost:3000`) from its current state — a working Eden-inspired clone with 12 phases shipped — to a **1:1 visual + behavioral replica of [app.eden.so](https://app.eden.so)**, minus billing/monetization.
+This is the plan to take **CreatorCrew** (our IG Saves → ideation app at `webapp/` running on `localhost:3000`) from its current state — a working Eden-inspired clone with 12 phases shipped — to a **1:1 visual + behavioral replica of [app.eden.so](https://app.eden.so)**, minus billing/monetization.
 
 Why now: over this session we (a) finished the original 12-phase Eden-inspired pivot, (b) reverse-engineered Eden in depth via Claude in Chrome MCP — backend topology, every endpoint, the LLM stack, all boost system prompts, the post enrichment schema, the outlier-scoring math, every UI screen — and (c) realized that what we built is ~60% of Eden's product. The remaining 40% is captured in this plan.
 
@@ -11,7 +11,7 @@ Three companion docs already exist with the raw extracts; this plan inlines the 
 - [`webapp/docs/eden-deep-dive.md`](../../../Personal/Instagram%20Saves%20Engine/webapp/docs/eden-deep-dive.md) — every endpoint, full schemas, all extracted prompts
 - [`webapp/docs/eden-ui-replica-plan.md`](../../../Personal/Instagram%20Saves%20Engine/webapp/docs/eden-ui-replica-plan.md) — 19 screens with ASCII layouts + gap analysis
 
-Outcome: After ~7 focused weeks, Saves Engine should be indistinguishable from Eden to a side-by-side viewer (with our own creator catalog and no billing).
+Outcome: After ~7 focused weeks, CreatorCrew should be indistinguishable from Eden to a side-by-side viewer (with our own creator catalog and no billing).
 
 ---
 
@@ -212,7 +212,7 @@ What this is NOT:
 
 ### PHASE A — Visual polish (Week 1)
 
-Goal: Saves Engine looks like Eden in screenshots. No new backend work. Each task ≤1 day.
+Goal: CreatorCrew looks like Eden in screenshots. No new backend work. Each task ≤1 day.
 
 #### A.1 — Sidebar polish (½ day)
 Files: `webapp/components/Sidebar.tsx`, `webapp/components/WorkspaceSwitcher.tsx`

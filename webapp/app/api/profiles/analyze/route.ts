@@ -36,7 +36,7 @@ export const maxDuration = 60;
 const FRESH_DAYS = Number(process.env.PROFILE_FRESH_DAYS ?? 7);
 
 const GITHUB_OWNER = process.env.GITHUB_REPO_OWNER || "gangadhar02";
-const GITHUB_REPO = process.env.GITHUB_REPO_NAME || "drafts";
+const GITHUB_REPO = process.env.GITHUB_REPO_NAME || "creatorcrew";
 const GITHUB_REF = process.env.GITHUB_REPO_REF || "main";
 const WORKFLOW_FILE = "analyze-profile.yml";
 

@@ -46,7 +46,7 @@ const CHECKLIST: ChecklistItem[] = [
     key: "build_voice",
     title: "Build your voice",
     description:
-      "Train Saves Engine on your style so suggestions sound like you, not generic AI.",
+      "Train CreatorCrew on your style so suggestions sound like you, not generic AI.",
     buttonLabel: "Build voice",
     href: "/voice",
   },

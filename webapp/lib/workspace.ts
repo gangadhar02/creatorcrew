@@ -38,7 +38,7 @@ const ONBOARDING_TASK_KEYS = [
 
 const EMPTY_CONTEXT: WorkspaceContext = {
   workspaceId: "",
-  workspaceName: "Saves Engine",
+  workspaceName: "CreatorCrew",
   workspaceEmail: "",
   userId: null,
   userEmail: null,

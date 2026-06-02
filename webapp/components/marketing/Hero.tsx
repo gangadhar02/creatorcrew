@@ -16,7 +16,7 @@ export function Hero() {
           Turn everything you save into your next post.
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-[52ch] mx-auto mb-10 text-pretty">
-          Drafts is your AI creative second brain — it learns your taste and helps you ideate, plan, and write content in your own voice.
+          CreatorCrew is your AI creative second brain — it learns your taste and helps you ideate, plan, and write content in your own voice.
         </p>
 
         <EmailCaptureForm />

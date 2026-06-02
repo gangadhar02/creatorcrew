@@ -6,7 +6,7 @@ finding below is either:
 - a network request observed in the wild (URL + status + sample payload), or
 - a string extracted from their Vite bundle (`main-Dj2gVwbJ.js`, 4.2 MB).
 
-Use this to decide what to copy in Saves Engine and what to skip.
+Use this to decide what to copy in CreatorCrew and what to skip.
 
 ## 1. Backend topology — five subdomains, microservices
 
@@ -39,7 +39,7 @@ Path format: `social-mirror/<platform>/<platform_pk>/thumbnail.jpg`. Avatars
 are content-addressed (`avatar-{hash}.jpg`) so they auto-version when a
 creator changes their profile picture.
 
-Implications for Saves Engine: **bigger upgrade than our current `/api/ig-image`
+Implications for CreatorCrew: **bigger upgrade than our current `/api/ig-image`
 proxy.** They never serve IG URLs to the browser → no adblocker false-positives,
 no CDN expiry, plus they get cache control. Worth replicating with a small
 Supabase Storage bucket + cron worker.
@@ -482,7 +482,7 @@ We can implement this: at the end of onboarding, ask the user for their IG
 handle, run a one-shot `fetchUserPosts` to seed their workspace before
 they hit the dashboard.
 
-## 10. Gap analysis vs Saves Engine
+## 10. Gap analysis vs CreatorCrew
 
 What we already do that matches Eden:
 - Cross-platform unification (`creator_posts` table — matches their schema)
@@ -512,7 +512,7 @@ What Eden has that we don't:
 | **`usesVoiceProfile` flag per preset** (some boosts inject voice, others don't) | 30 min | Voice consistency |
 | **Local-first sync (manifest/snapshot/blob)** | 4-6 weeks | Probably not worth it for personal-scale |
 
-## 11. Recommended next moves for Saves Engine
+## 11. Recommended next moves for CreatorCrew
 
 Ranked by ROI:
 

@@ -21,7 +21,7 @@ const bricolage = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "Saves Engine",
+  title: "CreatorCrew",
   description: "Local content studio — saves, vision analysis, ideation, voice, boards.",
 };
 

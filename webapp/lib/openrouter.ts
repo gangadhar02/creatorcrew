@@ -51,7 +51,7 @@ export async function* streamOpenRouter({
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://saves-engine.local",
-      "X-Title": "Saves Engine",
+      "X-Title": "CreatorCrew",
     },
     body: JSON.stringify({
       model,

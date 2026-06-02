@@ -53,7 +53,7 @@ export default async function SettingsPage() {
           Billing
         </h2>
         <Card className="p-4 text-sm text-muted-foreground">
-          Saves Engine is single-workspace and unmetered. No billing.
+          CreatorCrew is single-workspace and unmetered. No billing.
         </Card>
       </section>
     </div>

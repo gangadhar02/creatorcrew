@@ -22,7 +22,7 @@ export default async function LoginPage({
       <div className="w-full max-w-sm space-y-8">
         <header className="text-center space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Welcome to Saves Engine
+            Welcome to CreatorCrew
           </h1>
           <p className="text-sm text-muted-foreground">
             Enter your email — we&apos;ll send you a sign-in link.

@@ -36,7 +36,7 @@ export default function WorkspaceSwitcher({
 
   function onBilling() {
     toast.info("Billing is disabled in this build.", {
-      description: "Saves Engine is single-workspace and unmetered.",
+      description: "CreatorCrew is single-workspace and unmetered.",
     });
   }
 

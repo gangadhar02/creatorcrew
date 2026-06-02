@@ -3,7 +3,7 @@
 import { Plug, Brain, PenLine } from "lucide-react";
 
 const steps = [
-  { icon: Plug, title: "Connect & save", body: "Import your Instagram saves and bookmarks, or save any post into Drafts." },
+  { icon: Plug, title: "Connect & save", body: "Import your Instagram saves and bookmarks, or save any post into CreatorCrew." },
   { icon: Brain, title: "Let AI learn your taste", body: "It analyzes your content, captures your voice, and surfaces what performs." },
   { icon: PenLine, title: "Create", body: "Ideate, plan on the canvas, and write your next post — in your voice — with your AI copilot." },
 ];

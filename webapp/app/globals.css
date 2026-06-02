@@ -43,7 +43,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Marketing landing accent + display font (values scoped via .drafts-landing). */
+  /* Marketing landing accent + display font (values scoped via .creatorcrew-landing). */
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --font-display: var(--font-bricolage);
@@ -250,12 +250,12 @@ html.sidebar-collapsed aside[data-role="app-sidebar"] .sidebar-nav-link > span {
 }
 
 /* ==========================================================================
-   Marketing landing page (drafts.com "/") — scoped design tokens.
-   The Lovable-designed landing keeps its own Drafts palette + fonts without
-   affecting the rest of the app. Applied via the `.drafts-landing` wrapper in
+   Marketing landing page (creatorcrew.com "/") — scoped design tokens.
+   The Lovable-designed landing keeps its own CreatorCrew palette + fonts without
+   affecting the rest of the app. Applied via the `.creatorcrew-landing` wrapper in
    app/page.tsx. Must come AFTER :root so it wins by source order in light mode.
    ========================================================================== */
-.drafts-landing {
+.creatorcrew-landing {
   --radius: 0.625rem;
   --background: oklch(0.985 0.002 95);
   --foreground: oklch(0.18 0.01 270);
@@ -281,7 +281,7 @@ html.sidebar-collapsed aside[data-role="app-sidebar"] .sidebar-nav-link > span {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-.dark .drafts-landing {
+.dark .creatorcrew-landing {
   --background: oklch(0.14 0.005 270);
   --foreground: oklch(0.97 0.005 90);
   --card: oklch(0.18 0.006 270);
@@ -305,11 +305,11 @@ html.sidebar-collapsed aside[data-role="app-sidebar"] .sidebar-nav-link > span {
   --brand-foreground: oklch(0.14 0.005 270);
 }
 
-.drafts-landing .font-display {
+.creatorcrew-landing .font-display {
   letter-spacing: -0.02em;
 }
 
-.drafts-landing .dot-grid {
+.creatorcrew-landing .dot-grid {
   background-image: radial-gradient(circle, currentColor 1px, transparent 1px);
   background-size: 24px 24px;
 }

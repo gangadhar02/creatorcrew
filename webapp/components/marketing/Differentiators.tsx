@@ -14,9 +14,9 @@ export function Differentiators() {
     <section className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="max-w-2xl mb-14">
-          <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">Why Drafts</span>
+          <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">Why CreatorCrew</span>
           <h2 className="font-display text-3xl md:text-5xl font-semibold leading-tight mt-3 text-balance">
-            Why creators pick Drafts.
+            Why creators pick CreatorCrew.
           </h2>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">

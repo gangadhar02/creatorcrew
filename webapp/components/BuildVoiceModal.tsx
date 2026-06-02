@@ -198,7 +198,7 @@ function MenuView({
         your ideas depend on it.
       </h2>
       <p className="text-sm text-[var(--muted-foreground)]">
-        Saves Engine grounds everything it writes for you in the voice you set
+        CreatorCrew grounds everything it writes for you in the voice you set
         here. Get it close now, and your drafts stop sounding like everyone
         else&apos;s AI.
       </p>

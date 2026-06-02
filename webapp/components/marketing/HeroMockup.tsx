@@ -15,7 +15,7 @@ export function HeroMockup() {
             <span className="size-6 rounded-md bg-brand grid place-items-center">
               <span className="size-2 rounded-[2px] bg-brand-foreground rotate-12" />
             </span>
-            <span className="font-display text-sm font-semibold">Drafts</span>
+            <span className="font-display text-sm font-semibold">CreatorCrew</span>
           </div>
           <div className="space-y-1.5">
             <SidebarItem icon={<Sparkles className="size-3.5" />} label="Inbox" active />
@@ -89,7 +89,7 @@ export function HeroMockup() {
             </div>
           </div>
           <div className="mt-3 flex items-center gap-2 rounded-xl bg-secondary px-3 py-2.5">
-            <span className="text-[11px] text-muted-foreground flex-1">Ask Drafts…</span>
+            <span className="text-[11px] text-muted-foreground flex-1">Ask CreatorCrew…</span>
             <span className="grid place-items-center size-6 rounded-md bg-brand text-brand-foreground text-xs">↑</span>
           </div>
         </aside>

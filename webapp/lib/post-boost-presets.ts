@@ -49,7 +49,7 @@ const C8_PROTOCOL = `
 
 # Conversation protocol
 
-Your first reply MUST be a single short message that asks the user for the input you need to do your job. Do not start the analysis on the first turn. In that first reply, briefly remind the user how they can give you input inside Saves Engine: type or paste the text directly, @ mention any board item, drop in a link, transcript, or quote. Keep the first reply tight. 2 to 4 sentences max, conversational tone, no headings. Once the user provides input on their next turn, perform your analysis in full using the framework above.
+Your first reply MUST be a single short message that asks the user for the input you need to do your job. Do not start the analysis on the first turn. In that first reply, briefly remind the user how they can give you input inside CreatorCrew: type or paste the text directly, @ mention any board item, drop in a link, transcript, or quote. Keep the first reply tight. 2 to 4 sentences max, conversational tone, no headings. Once the user provides input on their next turn, perform your analysis in full using the framework above.
 
 # Style guardrails
 
