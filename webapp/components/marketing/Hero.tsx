@@ -21,8 +21,10 @@ export function Hero() {
 
         <EmailCaptureForm />
 
-        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-muted-foreground">
-          <span>Free forever plan · No credit card</span>
+        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <span>Free forever plan</span>
+          <span aria-hidden>·</span>
+          <span>No credit card</span>
           <span aria-hidden>·</span>
           <a href="#how" className="underline-offset-4 hover:underline">See how it works</a>
         </div>

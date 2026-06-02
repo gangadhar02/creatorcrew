@@ -1,6 +1,3 @@
-"use client";
-
-import { useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,9 +33,7 @@ const tiers = [
   },
 ];
 
-export function Pricing() {
-  const [region, setRegion] = useState<Region>("USD");
-
+export function Pricing({ region = "USD" }: { region?: Region }) {
   return (
     <section id="pricing" className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
@@ -50,27 +45,7 @@ export function Pricing() {
           <p className="text-muted-foreground mt-4">Start free. Upgrade when you're shipping daily.</p>
         </div>
 
-        <div className="flex justify-center mb-12">
-          <div className="inline-flex p-1 bg-secondary rounded-full">
-            {(["USD", "INR"] as Region[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRegion(r)}
-                className={cn(
-                  "px-4 py-1.5 rounded-full text-xs font-semibold transition-colors",
-                  region === r
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {r === "USD" ? "United States · USD" : "India · INR"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto mt-12">
           {tiers.map((t) => (
             <div
               key={t.name}

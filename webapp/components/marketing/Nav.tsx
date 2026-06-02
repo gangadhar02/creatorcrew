@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Logo } from "./Logo";
-import { ThemeToggle } from "./ThemeToggle";
 
 export function Nav() {
   return (
@@ -16,7 +15,6 @@ export function Nav() {
           <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <ThemeToggle />
           <Link
             href="/login"
             className="hidden sm:inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"

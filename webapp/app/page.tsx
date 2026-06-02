@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Nav } from "@/components/marketing/Nav";
 import { Hero } from "@/components/marketing/Hero";
 import { SocialProof } from "@/components/marketing/SocialProof";
@@ -25,7 +26,14 @@ export const metadata: Metadata = {
  * tokens (defined in globals.css) so the landing keeps its own look without
  * affecting the rest of the app.
  */
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Geo-pick the pricing currency from Vercel's edge header. India sees INR;
+  // every other country (and local/preview, where the header is absent) sees
+  // USD.
+  const hdrs = await headers();
+  const country = (hdrs.get("x-vercel-ip-country") || "").toUpperCase();
+  const region: "USD" | "INR" = country === "IN" ? "INR" : "USD";
+
   return (
     <div className="creatorcrew-landing min-h-screen bg-background text-foreground">
       <Nav />
@@ -38,7 +46,7 @@ export default function LandingPage() {
         <HowItWorks />
         <Differentiators />
         <Roadmap />
-        <Pricing />
+        <Pricing region={region} />
         <Faq />
         <FinalCta />
       </main>

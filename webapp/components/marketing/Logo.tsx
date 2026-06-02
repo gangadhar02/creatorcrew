@@ -1,12 +1,32 @@
 "use client";
 
+import Image from "next/image";
+
 export function Logo({ className }: { className?: string }) {
   return (
-    <a href="/" className={`flex items-center gap-2 ${className ?? ""}`} aria-label="CreatorCrew home">
-      <span className="relative grid place-items-center size-8 rounded-lg bg-brand">
-        <span className="size-3 rounded-[3px] bg-brand-foreground rotate-12" />
-      </span>
-      <span className="font-display text-xl font-semibold tracking-tight text-foreground">CreatorCrew</span>
+    <a
+      href="/"
+      className={`inline-flex items-center ${className ?? ""}`}
+      aria-label="CreatorCrew home"
+    >
+      {/* Full wordmark (robot + "CreatorCrew"). Dark variant has light text so
+          it stays legible on dark backgrounds. */}
+      <Image
+        src="/logo-wordmark.png"
+        alt="CreatorCrew"
+        width={2207}
+        height={316}
+        className="h-7 w-auto dark:hidden"
+        priority
+      />
+      <Image
+        src="/logo-wordmark-dark.png"
+        alt="CreatorCrew"
+        width={2207}
+        height={316}
+        className="hidden h-7 w-auto dark:block"
+        priority
+      />
     </a>
   );
 }

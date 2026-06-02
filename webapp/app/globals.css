@@ -162,6 +162,28 @@ body {
   animation: page-fade-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Marquee — one track holds two copies of the content; translating -50%
+   loops seamlessly. Used by the landing's "Trusted by creators" row. */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marquee-scroll 28s linear infinite;
+}
+.marquee-pause:hover .marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}
+
 /* Subtle card hover: lifts 1px and softens shadow. Cheap, reads as polish. */
 .card-hover {
   transition:

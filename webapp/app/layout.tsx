@@ -23,6 +23,14 @@ const bricolage = Bricolage_Grotesque({
 export const metadata: Metadata = {
   title: "CreatorCrew",
   description: "Your AI content crew: niche trends, voice, ideation, and drafts in one place.",
+  icons: {
+    icon: [
+      { url: "/favicon-light.png", type: "image/png", media: "(prefers-color-scheme: light)" },
+      { url: "/favicon-dark.png", type: "image/png", media: "(prefers-color-scheme: dark)" },
+      { url: "/favicon-light.png", type: "image/png" },
+    ],
+    apple: [{ url: "/favicon-light.png" }],
+  },
 };
 
 // Set `.dark` on <html> before hydration based on stored preference (or OS),

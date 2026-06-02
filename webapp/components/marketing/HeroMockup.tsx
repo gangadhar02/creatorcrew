@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Sparkles, Search, Hash, MessageSquare } from "lucide-react";
 
 export function HeroMockup() {
@@ -12,9 +13,8 @@ export function HeroMockup() {
         {/* Sidebar */}
         <aside className="hidden md:flex flex-col w-52 border-r border-border bg-card p-4 gap-4">
           <div className="flex items-center gap-2 pb-3 border-b border-border">
-            <span className="size-6 rounded-md bg-brand grid place-items-center">
-              <span className="size-2 rounded-[2px] bg-brand-foreground rotate-12" />
-            </span>
+            <Image src="/logo.png" alt="" width={24} height={24} className="size-6 shrink-0 dark:hidden" />
+            <Image src="/logo-dark.png" alt="" width={24} height={24} className="hidden size-6 shrink-0 dark:block" />
             <span className="font-display text-sm font-semibold">CreatorCrew</span>
           </div>
           <div className="space-y-1.5">
