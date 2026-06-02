@@ -171,7 +171,9 @@ async function querySemanticDiscoverPosts(
   // and does NOT auto-create new creator rows for every author found.
   // Toggle exposed in the UI as "Pull fresh posts from the web".
   const webSearch = opts.fetchWeb
-    ? await ingestWebSearchForQuery(opts.q, opts.platforms, { count: 30 })
+    ? await ingestWebSearchForQuery(opts.q, opts.platforms, workspaceId, {
+        count: 30,
+      })
     : null;
 
   const result = await discover({

@@ -155,6 +155,7 @@ export async function ingestXUser(
 /** Search X by keyword and ingest tweets from any author. */
 export async function searchXByKeyword(
   query: string,
+  workspaceId: string,
   opts: { maxResults?: number } = {}
 ): Promise<{ ingested: number; warning?: string }> {
   const q = query.trim();
@@ -167,7 +168,9 @@ export async function searchXByKeyword(
     };
   }
 
-  const wsId = await getDefaultWorkspaceId();
+  // Scope ingest to the searching workspace — NOT getDefaultWorkspaceId(),
+  // which returns the oldest workspace and leaks results across accounts.
+  const wsId = workspaceId;
   if (!wsId) throw new Error("No workspace configured");
 
   const maxResults = Math.max(10, Math.min(opts.maxResults ?? 25, 100));

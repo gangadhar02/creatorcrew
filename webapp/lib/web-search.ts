@@ -22,10 +22,11 @@ export type WebSearchIngestResult = {
 export async function ingestWebSearchForQuery(
   query: string,
   platforms: string[] | null,
+  workspaceId: string,
   opts: { count?: number } = {}
 ): Promise<WebSearchIngestResult> {
   const q = query.trim();
-  if (!q) {
+  if (!q || !workspaceId) {
     return {
       youtube: { ingested: 0 },
       instagram: { ingested: 0 },
@@ -42,19 +43,17 @@ export async function ingestWebSearchForQuery(
 
   const [youtubeRes, instagramRes, xRes] = await Promise.all([
     wantsYouTube
-      ? searchYouTubeByKeyword(q, { maxResults: count }).catch((e) => ({
-          ingested: 0,
-          warning: String(e),
-        }))
+      ? searchYouTubeByKeyword(q, workspaceId, { maxResults: count }).catch(
+          (e) => ({ ingested: 0, warning: String(e) })
+        )
       : Promise.resolve({ ingested: 0 }),
     wantsInstagram
-      ? searchInstagramByKeyword(q, { maxResults: count }).catch((e) => ({
-          ingested: 0,
-          warning: String(e),
-        }))
+      ? searchInstagramByKeyword(q, workspaceId, { maxResults: count }).catch(
+          (e) => ({ ingested: 0, warning: String(e) })
+        )
       : Promise.resolve({ ingested: 0 }),
     wantsX
-      ? searchXByKeyword(q, { maxResults: count }).catch((e) => ({
+      ? searchXByKeyword(q, workspaceId, { maxResults: count }).catch((e) => ({
           ingested: 0,
           warning: String(e),
         }))

@@ -312,13 +312,16 @@ type YTSearchItem = {
  */
 export async function searchYouTubeByKeyword(
   query: string,
+  workspaceId: string,
   opts: { maxResults?: number } = {}
 ): Promise<{ ingested: number; warning?: string }> {
   if (!process.env.YOUTUBE_API_KEY) {
     return { ingested: 0, warning: "YOUTUBE_API_KEY not set" };
   }
 
-  const wsId = await getDefaultWorkspaceId();
+  // Scope ingest to the searching workspace — NOT getDefaultWorkspaceId(),
+  // which returns the oldest workspace and leaks results across accounts.
+  const wsId = workspaceId;
   if (!wsId) throw new Error("No workspace configured");
 
   const maxResults = Math.max(1, Math.min(opts.maxResults ?? 25, 50));
