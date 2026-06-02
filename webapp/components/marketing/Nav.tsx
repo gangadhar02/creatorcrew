@@ -23,12 +23,12 @@ export function Nav() {
           >
             Log in
           </Link>
-          <Link
-            href="/login"
+          <a
+            href="#pricing"
             className="inline-flex items-center rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 transition-opacity"
           >
             Sign up
-          </Link>
+          </a>
         </div>
       </div>
     </nav>

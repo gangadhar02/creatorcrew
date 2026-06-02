@@ -12,6 +12,7 @@ const tiers = [
     tagline: "Try it — limited saves, ideas, and analyses.",
     price: { USD: "$0", INR: "₹0" },
     cta: "Start free",
+    href: "/login",
     featured: false,
     features: ["100 saves", "Basic AI tagging", "1 canvas board", "Community access"],
   },
@@ -19,7 +20,8 @@ const tiers = [
     name: "Creator",
     tagline: "For active creators — generous AI credits, voice, canvas.",
     price: { USD: "$19", INR: "₹499" },
-    cta: "Start free trial",
+    cta: "Get Creator",
+    href: "/subscribe?plan=creator",
     featured: true,
     features: ["Unlimited saves", "Voice fingerprint", "Outlier detection", "Infinite canvas boards", "Generous AI credits"],
   },
@@ -28,6 +30,7 @@ const tiers = [
     tagline: "Power creators — more credits + early access to Bio & DMs.",
     price: { USD: "$39", INR: "₹1,299" },
     cta: "Go Pro",
+    href: "/subscribe?plan=pro",
     featured: false,
     features: ["Everything in Creator", "3× AI credits", "Early access: Link-in-bio", "Early access: DM automation", "Priority support"],
   },
@@ -107,7 +110,7 @@ export function Pricing() {
                 ))}
               </ul>
               <a
-                href="#start"
+                href={t.href}
                 className={cn(
                   "w-full text-center py-3 rounded-xl text-sm font-semibold transition-all",
                   t.featured
