@@ -22,7 +22,7 @@ const bricolage = Bricolage_Grotesque({
 
 export const metadata: Metadata = {
   title: "CreatorCrew",
-  description: "Local content studio — saves, vision analysis, ideation, voice, boards.",
+  description: "Your AI content crew: niche trends, voice, ideation, and drafts in one place.",
 };
 
 // Set `.dark` on <html> before hydration based on stored preference (or OS),

@@ -29,7 +29,7 @@ export async function PATCH(request: NextRequest) {
   const ws = await getWorkspaceContext();
   if (!ws.workspaceId) {
     return NextResponse.json(
-      { error: "No workspace — apply migration 003" },
+      { error: "No workspace. Apply migration 003" },
       { status: 500 }
     );
   }

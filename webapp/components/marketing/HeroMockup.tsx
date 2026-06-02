@@ -47,7 +47,7 @@ export function HeroMockup() {
           {/* Floating cards */}
           <FloatingCard className="absolute top-24 left-6 md:left-12 w-44 md:w-52 rotate-[-3deg] bg-amber-50 ring-amber-300/40 text-amber-900">
             <div className="text-[9px] uppercase tracking-wider font-semibold mb-1.5 opacity-70">Post idea</div>
-            <div className="text-[11px] md:text-xs font-medium leading-snug">The psychology of a clean desk — why creators ship more.</div>
+            <div className="text-[11px] md:text-xs font-medium leading-snug">The psychology of a clean desk, and why creators ship more.</div>
           </FloatingCard>
 
           <FloatingCard className="absolute top-44 left-1/3 w-44 md:w-56 rotate-[2deg] p-0 overflow-hidden">
@@ -82,7 +82,7 @@ export function HeroMockup() {
               I analyzed your 12 saves on this board. Want a thread on "what to remove from your desk"?
             </div>
             <div className="bg-brand/10 ring-1 ring-brand/20 rounded-xl rounded-tr-sm px-3 py-2.5 text-[11px] leading-relaxed text-foreground ml-6">
-              Yes — make it sound like me, hook first.
+              Yes, make it sound like me. Hook first.
             </div>
             <div className="bg-secondary rounded-xl rounded-tl-sm px-3 py-2.5 text-[11px] leading-relaxed text-foreground/80">
               <span className="font-semibold">Hook:</span> "Your desk isn't messy. It's loud." Drafting 6 lines in your voice…

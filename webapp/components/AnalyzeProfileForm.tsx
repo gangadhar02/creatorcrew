@@ -226,7 +226,7 @@ export default function AnalyzeProfileForm() {
       {!job && !submitting && (
         <p className="mt-2 text-xs text-[var(--muted-foreground)]">
           Range: 1–500 posts. Default 40. Higher = more data but higher fetch
-          cost. Recently-analyzed profiles are reused automatically — use Refresh
+          cost. Recently-analyzed profiles are reused automatically. Use Refresh
           to force a re-fetch. Production runs go through GitHub Actions (~1–2
           min); local dev runs inline.
         </p>

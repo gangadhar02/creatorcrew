@@ -164,10 +164,10 @@ export default async function SavesPage({
                   </td>
                   <td className="px-4 py-2 text-[var(--muted-foreground)]">{s.type}</td>
                   <td className="px-4 py-2 text-[var(--muted-foreground)]">
-                    {s.collection_name || "—"}
+                    {s.collection_name || "–"}
                   </td>
                   <td className="px-4 py-2 max-w-md truncate text-[var(--muted-foreground)]">
-                    {s.caption?.slice(0, 100) || "—"}
+                    {s.caption?.slice(0, 100) || "–"}
                   </td>
                   <td className="px-4 py-2">
                     <StatusBadge value={s.status} />
@@ -175,7 +175,7 @@ export default async function SavesPage({
                   <td className="px-4 py-2 text-right text-xs text-[var(--muted-foreground)] tabular-nums">
                     {s.vision_analysis_md
                       ? `${Math.round(s.vision_analysis_md.length / 100) / 10}k`
-                      : "—"}
+                      : "–"}
                   </td>
                 </tr>
               ))

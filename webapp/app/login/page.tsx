@@ -7,9 +7,9 @@ import LoginForm from "./LoginForm";
 export const dynamic = "force-dynamic";
 
 const VALUE_PROPS = [
-  "Turn your saves into ready-to-post ideas",
-  "AI that writes in your own voice",
-  "Spot outliers before they trend",
+  "A crew that tracks what's trending in your niche",
+  "Learns your voice and writes in your tone",
+  "Turns inspiration into ready-to-post ideas",
 ];
 
 export default async function LoginPage({
@@ -35,11 +35,12 @@ export default async function LoginPage({
         <div className="hidden lg:block">
           <Logo />
           <h1 className="font-display mt-10 text-4xl font-semibold leading-[1.05] tracking-tight text-balance xl:text-5xl">
-            Turn everything you save into your next post.
+            A crew of AI agents that create content with you.
           </h1>
           <p className="mt-5 max-w-md text-lg text-muted-foreground text-pretty">
-            CreatorCrew is your AI creative second brain — it learns your taste
-            and helps you ideate, plan, and write in your own voice.
+            CreatorCrew is your AI second brain for content. Your crew tracks
+            your niche, learns your voice, and writes your next post in your
+            tone.
           </p>
 
           <div className="mt-10 max-w-md rounded-2xl border border-border bg-card/60 p-6 shadow-sm backdrop-blur-sm">
@@ -83,7 +84,7 @@ export default async function LoginPage({
                 Get started
               </h2>
               <p className="text-sm text-muted-foreground">
-                Sign in or create your account — no password needed.
+                Sign in or create your account. No password needed.
               </p>
             </header>
 

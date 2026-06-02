@@ -176,7 +176,7 @@ function IdeaCard({
       <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 opacity-70">
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium">
-            @{save.author} ({save.type}) — Gemini suggests skip
+            @{save.author} ({save.type}): Gemini suggests skip
           </div>
           {state.kind === "skipped" ? (
             <span className="text-xs text-emerald-600">marked Reviewed</span>

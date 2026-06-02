@@ -10,13 +10,13 @@ export function Hero() {
       <div className="relative max-w-7xl mx-auto text-center">
         <a href="#features" className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-[11px] font-medium text-muted-foreground mb-7 hover:text-foreground transition-colors">
           <span className="size-1.5 rounded-full bg-brand" />
-          New · Outlier detection is live
+          New · Meet your AI content crew
         </a>
         <h1 className="font-display text-5xl md:text-7xl font-semibold leading-[1.02] text-balance max-w-[18ch] mx-auto mb-7">
-          Turn everything you save into your next post.
+          A crew of AI agents that create content with you.
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-[52ch] mx-auto mb-10 text-pretty">
-          CreatorCrew is your AI creative second brain — it learns your taste and helps you ideate, plan, and write content in your own voice.
+          CreatorCrew is your AI second brain for content. Your crew tracks what&apos;s trending in your niche, learns your voice from your past posts, then ideates and writes your next post in your tone.
         </p>
 
         <EmailCaptureForm />

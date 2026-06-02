@@ -9,7 +9,7 @@ type Region = "USD" | "INR";
 const tiers = [
   {
     name: "Free",
-    tagline: "Try it — limited saves, ideas, and analyses.",
+    tagline: "Try it. Limited saves, ideas, and analyses.",
     price: { USD: "$0", INR: "₹0" },
     cta: "Start free",
     href: "/login",
@@ -18,7 +18,7 @@ const tiers = [
   },
   {
     name: "Creator",
-    tagline: "For active creators — generous AI credits, voice, canvas.",
+    tagline: "For active creators. Generous AI credits, voice, and canvas.",
     price: { USD: "$19", INR: "₹499" },
     cta: "Get Creator",
     href: "/subscribe?plan=creator",
@@ -27,7 +27,7 @@ const tiers = [
   },
   {
     name: "Pro",
-    tagline: "Power creators — more credits + early access to Bio & DMs.",
+    tagline: "For power creators. More credits plus early access to Bio and DMs.",
     price: { USD: "$39", INR: "₹1,299" },
     cta: "Go Pro",
     href: "/subscribe?plan=pro",

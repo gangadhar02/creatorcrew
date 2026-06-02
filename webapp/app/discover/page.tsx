@@ -375,7 +375,7 @@ export default async function DiscoverPage({
 
       {relaxedOutlier && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-xs text-muted-foreground">
-          No posts met the default {DEFAULT_MIN_OUTLIER}× outlier filter — showing
+          No posts met the default {DEFAULT_MIN_OUTLIER}× outlier filter, showing
           all posts instead.{" "}
           <Link
             href={buildDiscoverKeepAllHref(sp)}

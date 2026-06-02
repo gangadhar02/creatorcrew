@@ -36,7 +36,7 @@ export default function DiscoverPaneContent({
     <div className="grid grid-cols-2 gap-2">
       {posts.length === 0 && (
         <div className="col-span-2 rounded-md border border-dashed border-[var(--border)] p-4 text-center text-xs text-[var(--muted-foreground)]">
-          No posts yet — add creators in /creators
+          No posts yet. Add creators in /creators
         </div>
       )}
       {posts.map((p) => (

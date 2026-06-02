@@ -25,43 +25,43 @@ type Feature = {
 const features: Feature[] = [
   {
     eyebrow: "Capture",
-    title: "Save anything, in one searchable library.",
-    body: "Pull in your Instagram saves and bookmarks automatically. No more lost screenshots — every spark of inspiration lives in one place.",
+    title: "Everything that inspires you, in one place.",
+    body: "Pull in your Instagram saves and bookmarks automatically. No more lost screenshots. Every spark of inspiration lives in one searchable library your crew can draw from.",
     bullets: ["Auto-import from Instagram", "Save from anywhere with the extension", "Search by what you remember, not where you saved it"],
     mockup: <SaveMockup />,
   },
   {
     eyebrow: "Understand",
-    title: "AI that actually reads your saves.",
-    body: "Every saved reel and image is analyzed — visuals, transcripts, and themes — so you can search and understand why something works.",
+    title: "Your crew actually reads your saves.",
+    body: "Every saved reel and image gets analyzed for visuals, transcripts, and themes, so you can search and understand exactly why something works.",
     bullets: ["Vision tagging on every image and reel", "Full transcripts on saved video", "Search by mood, topic, or hook style"],
     mockup: <VisionMockup />,
   },
   {
     eyebrow: "Discover",
-    title: "Find what actually performs.",
-    body: "Surface top-performing posts and creators in your niche. Spot outliers — the posts that massively over-performed — so you model what works, not what's average.",
+    title: "See what's trending in your niche.",
+    body: "Your crew tracks top-performing posts and creators in your niche and surfaces the outliers, the posts that massively over-performed, so you model what works instead of what's average.",
     bullets: ["Outlier detection vs creator baseline", "Niche feeds tailored to your boards", "Performance signals, not vanity averages"],
     mockup: <DiscoverMockup />,
   },
   {
     eyebrow: "Analyze",
     title: "Decode any creator in seconds.",
-    body: "Drop a public Instagram profile and get typical reel views, engagement, and breakout posts. Understand any creator's playbook in a glance.",
+    body: "Drop a public Instagram profile and get typical reel views, engagement, and breakout posts. Understand any creator's playbook at a glance.",
     bullets: ["Profile-level engagement snapshot", "Breakout post detection", "Side-by-side competitor view"],
     mockup: <ProfileMockup />,
   },
   {
     eyebrow: "Create",
-    title: "Chat with an AI that knows your taste.",
-    body: "A creative copilot aware of your saved content and your voice. Ideate, remix, write a hook, or break down why a reel went viral. Attach images and PDFs.",
-    bullets: ["Grounded in your library, not the open web", "Vision + transcript on demand", "Voice-matched drafts"],
+    title: "A copilot that knows your taste and your voice.",
+    body: "Chat with a creative copilot grounded in your saved content and your voice. Ideate, remix, write a hook, or break down why a reel went viral. Attach images and PDFs.",
+    bullets: ["Grounded in your library, not the open web", "Vision and transcript on demand", "Voice-matched drafts"],
     mockup: <CopilotMockup />,
   },
   {
     eyebrow: "Voice",
     title: "Your voice, captured once.",
-    body: "Extract your writing voice and style once, then have every idea and draft generated in your tone — not generic AI mush.",
+    body: "Your crew learns your writing voice from your past posts, then generates every idea and draft in your tone, not generic AI mush.",
     bullets: ["Style fingerprint from your posts", "Tone presets per content pillar", "Always sounds like you"],
     mockup: <VoiceMockup />,
   },
@@ -69,13 +69,13 @@ const features: Feature[] = [
     eyebrow: "Canvas",
     title: "An infinite canvas for messy thinking.",
     body: "Collect, arrange, and connect content on a freeform board. Paste any Instagram link to drop it in as a card, sketch and add notes, and go fullscreen for distraction-free creating.",
-    bullets: ["Paste a link, get a card", "Freeform notes + sketches", "Group ideas into campaigns"],
+    bullets: ["Paste a link, get a card", "Freeform notes and sketches", "Group ideas into campaigns"],
     mockup: <CanvasMockup />,
   },
   {
     eyebrow: "Ideation",
-    title: "Turn saves into a content pipeline.",
-    body: "Convert inspiration into a steady pipeline of ideas, organized by your content pillars and ready to ship.",
+    title: "Never stare at a blank calendar again.",
+    body: "Your crew turns inspiration into a steady pipeline of ideas, organized by your content pillars and ready to ship.",
     bullets: ["Pillar-based idea queues", "One-click promote to draft", "Always know what's next"],
     mockup: <IdeationMockup />,
   },
@@ -88,7 +88,7 @@ export function Features() {
         <div className="max-w-2xl mb-16">
           <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">The product</span>
           <h2 className="font-display text-3xl md:text-5xl font-semibold leading-tight mt-3 text-balance">
-            Everything you need between the idea and the post.
+            Your crew handles the busywork. You stay the creator.
           </h2>
         </div>
 

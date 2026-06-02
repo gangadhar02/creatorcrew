@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       {
         error:
           platform === "x"
-            ? "X/Twitter links aren't supported yet — paste an Instagram post or reel link."
+            ? "X/Twitter links aren't supported yet. Paste an Instagram post or reel link."
             : "Unrecognized link. Paste an Instagram post or reel URL.",
       },
       { status: 400 }
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Couldn't fetch that post — it may be private, removed, or not a public Instagram post.",
+          "Couldn't fetch that post. It may be private, removed, or not a public Instagram post.",
       },
       { status: 502 }
     );

@@ -280,7 +280,7 @@ function LinksView({
       <h3 className="text-base font-semibold">Paste up to 5 of your own links</h3>
       <p className="text-xs text-[var(--muted-foreground)]">
         YouTube videos, tweets, threads, IG posts, Substack articles, blog
-        posts — anything you wrote or said.
+        posts, anything you wrote or said.
       </p>
       <div className="space-y-2">
         {rows.map((v, i) => (
@@ -337,7 +337,7 @@ function ArchetypeView({
     <div className="px-5 pt-4 pb-5 space-y-3">
       <h3 className="text-base font-semibold">Pick a starting point</h3>
       <p className="text-xs text-[var(--muted-foreground)]">
-        Six archetype voices. Pick the closest one — you can refine it after.
+        Six archetype voices. Pick the closest one. You can refine it after.
       </p>
       <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto">
         {archetypes.map((a) => {

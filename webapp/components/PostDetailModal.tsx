@@ -238,7 +238,7 @@ export default function PostDetailModal({
                 value={
                   post.outlier_multiplier
                     ? `${post.outlier_multiplier.toFixed(2)}×`
-                    : "—"
+                    : "–"
                 }
                 highlight={
                   !!post.outlier_multiplier && post.outlier_multiplier >= 2
@@ -252,7 +252,7 @@ export default function PostDetailModal({
                 value={
                   post.engagement_rate
                     ? `${post.engagement_rate.toFixed(2)}%`
-                    : "—"
+                    : "–"
                 }
               />
             </div>
@@ -511,7 +511,7 @@ function BlockRow({ block }: { block: AiOverviewBlock }) {
             <li key={i}>
               <span className="font-medium">{it.label}</span>
               {it.example && (
-                <span className="text-muted-foreground"> — {it.example}</span>
+                <span className="text-muted-foreground">: {it.example}</span>
               )}
             </li>
           ))}

@@ -14,9 +14,9 @@ import { FinalCta } from "@/components/marketing/FinalCta";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "CreatorCrew — Your AI creative second brain",
+  title: "CreatorCrew · Your AI content crew",
   description:
-    "Turn everything you save into your next post. CreatorCrew learns your taste and helps you ideate, plan, and write — in your own voice.",
+    "A crew of AI agents that create content with you. CreatorCrew tracks what's trending in your niche, learns your voice from your past posts, then ideates and writes in your tone.",
 };
 
 /**

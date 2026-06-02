@@ -23,7 +23,7 @@ type ProfileRow = {
 };
 
 function fmtNum(n: number | null | undefined): string {
-  if (!n) return "—";
+  if (!n) return "–";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);

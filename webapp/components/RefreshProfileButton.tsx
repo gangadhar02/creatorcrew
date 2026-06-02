@@ -47,7 +47,7 @@ export default function RefreshProfileButton({ handle }: { handle: string }) {
   }
 
   async function poll(jobId: string) {
-    setStatusText("Queued — waiting for GitHub Actions runner…");
+    setStatusText("Queued. Waiting for GitHub Actions runner…");
     pollerRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/profiles/analyze/${jobId}`);
@@ -57,8 +57,8 @@ export default function RefreshProfileButton({ handle }: { handle: string }) {
         if (data.status === "running") {
           setStatusText(
             data.posts_synced
-              ? `Running — ${data.posts_synced} posts so far`
-              : "Running — fetching posts from Instagram"
+              ? `Running. ${data.posts_synced} posts so far`
+              : "Running. Fetching posts from Instagram"
           );
         }
         if (data.status === "completed") {

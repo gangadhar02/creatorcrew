@@ -3,8 +3,8 @@
 import { Fingerprint, Layers, LineChart, Heart } from "lucide-react";
 
 const items = [
-  { icon: Fingerprint, title: "Personalized to you", body: "Learns your taste and your voice — unlike generic AI tools." },
-  { icon: Layers, title: "The whole loop in one place", body: "Inspiration, insight, ideation, and creation — no tool-hopping." },
+  { icon: Fingerprint, title: "Personalized to you", body: "Learns your taste and your voice, unlike generic AI tools." },
+  { icon: Layers, title: "A whole crew, one workspace", body: "Trends, insight, ideas, and drafts in one place. No tool-hopping." },
   { icon: LineChart, title: "Built on real performance", body: "Outlier detection shows what actually works, not vanity averages." },
   { icon: Heart, title: "Made by a creator", body: "Born from a real content workflow, not a boardroom." },
 ];
