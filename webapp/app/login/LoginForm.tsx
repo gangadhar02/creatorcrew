@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Lock, Loader2, KeyRound } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Mail, Lock, Loader2, KeyRound, ArrowLeft } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type Mode = "code" | "password";
+
+const inputClass =
+  "w-full rounded-xl bg-card px-4 py-2.5 text-sm text-foreground outline-none ring-1 ring-border transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-brand";
+
+const primaryBtnClass =
+  "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-brand-foreground transition-transform hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:active:scale-100";
 
 export default function LoginForm({
   next,
@@ -91,88 +95,85 @@ export default function LoginForm({
     }
   }
 
+  // Step 2 of the code flow — enter the 6-digit code we just emailed.
   if (sent) {
     return (
       <form onSubmit={handleVerifyCode} className="space-y-4 animate-page-in">
-        <div className="space-y-1 text-center">
+        <button
+          type="button"
+          onClick={() => {
+            setSent(false);
+            setCode("");
+            setError(null);
+          }}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" />
+          Back
+        </button>
+        <div className="space-y-1">
           <p className="font-medium">Enter your code</p>
           <p className="text-sm text-muted-foreground">
-            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to
-            continue.
+            We sent a 6-digit code to <strong>{email}</strong>.
           </p>
         </div>
-        <div className="space-y-2">
-          <label htmlFor="code" className="text-sm font-medium">
-            Verification code
-          </label>
-          <Input
-            id="code"
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            required
-            autoFocus
-            placeholder="123456"
-            maxLength={6}
-            value={code}
-            onChange={(e) =>
-              setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-            }
-            className="text-center tracking-[0.5em] text-lg"
-          />
-        </div>
+        <input
+          id="code"
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          aria-label="Verification code"
+          required
+          autoFocus
+          placeholder="123456"
+          maxLength={6}
+          value={code}
+          onChange={(e) =>
+            setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+          }
+          className={`${inputClass} text-center text-lg tracking-[0.5em]`}
+        />
         {error && <p className="text-xs text-destructive">{error}</p>}
-        <Button
+        <button
           type="submit"
           disabled={pending || code.length < 6}
-          className="w-full"
+          className={primaryBtnClass}
         >
           {pending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin" />
           ) : (
-            <KeyRound className="mr-2 h-4 w-4" />
+            <KeyRound className="size-4" />
           )}
-          Verify & continue
-        </Button>
-        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+          Verify &amp; continue
+        </button>
+        <p className="text-center text-xs text-muted-foreground">
+          Didn&apos;t get it?{" "}
           <button
             type="button"
             disabled={pending}
             onClick={(e) => handleSendCode(e)}
-            className="hover:text-foreground underline-offset-2 hover:underline disabled:opacity-50"
+            className="font-medium text-foreground underline-offset-2 hover:underline disabled:opacity-50"
           >
             Resend code
           </button>
-          <span aria-hidden>·</span>
-          <button
-            type="button"
-            onClick={() => {
-              setSent(false);
-              setCode("");
-              setError(null);
-            }}
-            className="hover:text-foreground underline-offset-2 hover:underline"
-          >
-            Use a different email
-          </button>
-        </div>
+        </p>
       </form>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Mode toggle */}
-      <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1 text-xs">
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1 text-xs">
         <button
           type="button"
           onClick={() => {
             setMode("code");
             setError(null);
           }}
-          className={`rounded px-3 py-1.5 font-medium transition-colors ${
+          className={`rounded-lg px-3 py-2 font-medium transition-colors ${
             mode === "code"
-              ? "bg-card shadow-sm text-foreground"
+              ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -184,9 +185,9 @@ export default function LoginForm({
             setMode("password");
             setError(null);
           }}
-          className={`rounded px-3 py-1.5 font-medium transition-colors ${
+          className={`rounded-lg px-3 py-2 font-medium transition-colors ${
             mode === "password"
-              ? "bg-card shadow-sm text-foreground"
+              ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -200,31 +201,32 @@ export default function LoginForm({
             <label htmlFor="email" className="text-sm font-medium">
               Email
             </label>
-            <Input
+            <input
               id="email"
               type="email"
               required
               autoFocus
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder="you@yourdomain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
             />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <Button
+          <button
             type="submit"
             disabled={pending || !email}
-            className="w-full"
+            className={primaryBtnClass}
           >
             {pending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Mail className="mr-2 h-4 w-4" />
+              <Mail className="size-4" />
             )}
-            Send code
-          </Button>
-          <p className="text-[11px] text-muted-foreground text-center">
+            Get started
+          </button>
+          <p className="text-center text-[11px] text-muted-foreground">
             No password required. We&apos;ll email you a 6-digit sign-in code.
           </p>
         </form>
@@ -234,22 +236,23 @@ export default function LoginForm({
             <label htmlFor="email-pw" className="text-sm font-medium">
               Email
             </label>
-            <Input
+            <input
               id="email-pw"
               type="email"
               required
               autoFocus
               autoComplete="email"
-              placeholder="you@example.com"
+              placeholder="you@yourdomain.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
             />
           </div>
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium">
               Password
             </label>
-            <Input
+            <input
               id="password"
               type="password"
               required
@@ -257,22 +260,23 @@ export default function LoginForm({
               placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className={inputClass}
             />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <Button
+          <button
             type="submit"
             disabled={pending || !email || !password}
-            className="w-full"
+            className={primaryBtnClass}
           >
             {pending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <Lock className="mr-2 h-4 w-4" />
+              <Lock className="size-4" />
             )}
             Sign in
-          </Button>
-          <p className="text-[11px] text-muted-foreground text-center">
+          </button>
+          <p className="text-center text-[11px] text-muted-foreground">
             First time? Use{" "}
             <button
               type="button"
@@ -280,7 +284,7 @@ export default function LoginForm({
                 setMode("code");
                 setError(null);
               }}
-              className="underline hover:text-foreground"
+              className="font-medium text-foreground underline-offset-2 hover:underline"
             >
               email code
             </button>{" "}
