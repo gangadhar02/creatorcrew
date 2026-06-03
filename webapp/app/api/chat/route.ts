@@ -21,8 +21,15 @@ import { getSupabase } from "@/lib/supabase";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { buildSystemPrompt } from "@/lib/chat-context";
 import { runChatPostTools, type ChatContent } from "@/lib/chat-post-tools";
-import { SHOW_BOOST_VARIATIONS_TOOL } from "@/lib/tools";
+import {
+  SHOW_BOOST_VARIATIONS_TOOL,
+  AUTO_TOOLS_GEMINI,
+  AUTO_TOOLS_OPENROUTER,
+  DATA_TOOL_NAMES,
+} from "@/lib/tools";
 import { streamOpenRouter, type ORMessage } from "@/lib/openrouter";
+import { extractToolCalls, stripToolFences } from "@/lib/tool-text";
+import { getCreatorDataForChat } from "@/lib/creator-data";
 import type { Chat } from "@/lib/types-chat";
 
 export const runtime = "nodejs";
@@ -54,21 +61,6 @@ function ev(e: Event): Uint8Array {
 
 function evString(e: Event): string {
   return JSON.stringify(e) + "\n";
-}
-
-function geminiChunkText(chunk: {
-  text?: string;
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string; thought?: boolean }> };
-  }>;
-}): string {
-  if (chunk.text) return chunk.text;
-  const parts = chunk.candidates?.[0]?.content?.parts;
-  if (!parts?.length) return "";
-  return parts
-    .filter((p) => !p.thought)
-    .map((p) => p.text || "")
-    .join("");
 }
 
 export async function POST(request: NextRequest) {
@@ -164,7 +156,16 @@ export async function POST(request: NextRequest) {
     .select("role, content_md")
     .eq("chat_id", chat.id)
     .order("created_at", { ascending: true });
-  const msgs = (history || []) as { role: string; content_md: string }[];
+  // Sanitize history: strip any legacy ```tool:...``` fenced blocks from prior
+  // assistant turns. Feeding those back taught the model to "type out" tool
+  // calls as text instead of invoking the function. Cards rehydrate from the
+  // tool_calls column, so the model never needs to see this format.
+  const msgs = ((history || []) as { role: string; content_md: string }[]).map(
+    (m) =>
+      m.role === "assistant"
+        ? { ...m, content_md: stripToolFences(m.content_md || "") }
+        : m
+  );
   const systemPrompt = await buildSystemPrompt(chat);
 
   // Append mentions context to the latest user message
@@ -174,7 +175,12 @@ export async function POST(request: NextRequest) {
   }
   type GeminiPart =
     | { text: string }
-    | { inlineData: { mimeType: string; data: string } };
+    | { inlineData: { mimeType: string; data: string } }
+    | {
+        functionCall: { name: string; args: Record<string, unknown> };
+        thoughtSignature?: string;
+      }
+    | { functionResponse: { name: string; response: Record<string, unknown> } };
   const contents: { role: "model" | "user"; parts: GeminiPart[] }[] = msgs.map(
     (m, i) => {
       const isLast = i === msgs.length - 1;
@@ -213,12 +219,25 @@ export async function POST(request: NextRequest) {
   };
   let toolConfig: ToolConfigShape | null = null;
   if (body.tool === "showBoostVariations") {
+    // Forced mode (unchanged behavior): the Boost button must produce variations.
     toolConfig = {
       tools: [{ functionDeclarations: [SHOW_BOOST_VARIATIONS_TOOL] }],
       toolConfig: {
         functionCallingConfig: {
           mode: FunctionCallingConfigMode.ANY,
           allowedFunctionNames: ["showBoostVariations"],
+        },
+      },
+    };
+  } else if (!body.tool) {
+    // Auto mode: offer all generative-UI tools, model chooses 0 or more.
+    // Note: Gemini rejects allowedFunctionNames unless mode is ANY, so in AUTO
+    // mode we only declare the tools and let the model pick freely.
+    toolConfig = {
+      tools: [{ functionDeclarations: AUTO_TOOLS_GEMINI }],
+      toolConfig: {
+        functionCallingConfig: {
+          mode: FunctionCallingConfigMode.AUTO,
         },
       },
     };
@@ -310,37 +329,12 @@ export async function POST(request: NextRequest) {
           }));
           const orTools =
             body.tool === "showBoostVariations"
-              ? [
-                  {
-                    type: "function" as const,
-                    function: {
-                      name: "showBoostVariations",
-                      description:
-                        "Render 3-5 ready-to-publish post variations as cards.",
-                      parameters: {
-                        type: "object",
-                        required: ["variations"],
-                        properties: {
-                          variations: {
-                            type: "array",
-                            minItems: 3,
-                            maxItems: 5,
-                            items: {
-                              type: "object",
-                              required: ["label", "body", "why"],
-                              properties: {
-                                label: { type: "string" },
-                                body: { type: "string" },
-                                why: { type: "string" },
-                              },
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                ]
-              : undefined;
+              ? AUTO_TOOLS_OPENROUTER.filter(
+                  (t) => t.function.name === "showBoostVariations"
+                )
+              : !body.tool
+                ? AUTO_TOOLS_OPENROUTER
+                : undefined;
           for await (const e of streamOpenRouter({
             apiKey: openrouterApiKey,
             model: selectedModel,
@@ -363,55 +357,125 @@ export async function POST(request: NextRequest) {
               assembled += e.delta;
               controller.enqueue(ev({ type: "token", text: e.delta }));
             } else if (e.type === "tool-call") {
+              // Tool calls are persisted separately in `tool_calls` and rendered
+              // as cards from there. Do NOT embed them into content_md: the args
+              // can contain markdown with ``` fences, which breaks stripping and
+              // leaks raw JSON into the rendered message.
               toolCalls.push({ name: e.name, args: e.args });
               controller.enqueue(ev({ type: "tool-call", name: e.name, args: e.args }));
-              assembled +=
-                "\n\n```tool:" +
-                e.name +
-                "\n" +
-                JSON.stringify(e.args) +
-                "\n```\n";
             }
           }
         } else {
-          const streamResp = await ai.models.generateContentStream({
-            model: selectedModel,
-            contents,
-            config: {
-              ...(effectiveSystemPrompt
-                ? {
-                    systemInstruction: {
-                      parts: [{ text: effectiveSystemPrompt }],
-                    },
+          // Gemini path with a DATA-tool execution loop. Render tools
+          // (creatorSnapshot, draftDocument, ...) are terminal and emitted to
+          // the client. DATA tools (getCreatorData) are executed server-side and
+          // their result is fed back so the model can render cards from real
+          // numbers. Loop until the model stops requesting data (bounded).
+          const dataToolNames = new Set<string>(DATA_TOOL_NAMES);
+          const MAX_TOOL_ROUNDS = 4;
+          for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+            const streamResp = await ai.models.generateContentStream({
+              model: selectedModel,
+              contents,
+              config: {
+                ...(effectiveSystemPrompt
+                  ? {
+                      systemInstruction: {
+                        parts: [{ text: effectiveSystemPrompt }],
+                      },
+                    }
+                  : {}),
+                ...(toolConfig || {}),
+                temperature: 0.7,
+              },
+            });
+            // Keep the raw model parts for data-tool calls so we can echo them
+            // back verbatim. Gemini 3 attaches a thought_signature to each
+            // functionCall part that MUST be preserved when the call is sent
+            // back with its response, or the next call 400s.
+            const dataCalls: {
+              name: string;
+              args: Record<string, unknown>;
+              part: GeminiPart;
+            }[] = [];
+            for await (const chunk of streamResp) {
+              const parts = chunk.candidates?.[0]?.content?.parts || [];
+              for (const part of parts) {
+                if (part.functionCall) {
+                  const name = part.functionCall.name || "";
+                  const args = (part.functionCall.args ||
+                    {}) as Record<string, unknown>;
+                  if (dataToolNames.has(name)) {
+                    // Execute server-side and feed back; do not show to user.
+                    dataCalls.push({
+                      name,
+                      args,
+                      part: part as unknown as GeminiPart,
+                    });
+                  } else {
+                    // Render tool: terminal, surfaced as a card.
+                    toolCalls.push({ name, args });
+                    controller.enqueue(ev({ type: "tool-call", name, args }));
                   }
-                : {}),
-              ...(toolConfig || {}),
-              temperature: 0.7,
-            },
-          });
-          for await (const chunk of streamResp) {
-            const calls = chunk.functionCalls;
-            if (calls && calls.length > 0) {
-              for (const c of calls) {
-                const name = c.name || "";
-                const args = c.args || {};
-                toolCalls.push({ name, args });
-                controller.enqueue(ev({ type: "tool-call", name, args }));
-                assembled +=
-                  "\n\n```tool:" +
-                  name +
-                  "\n" +
-                  JSON.stringify(args) +
-                  "\n```\n";
+                } else if (part.text && !part.thought) {
+                  assembled += part.text;
+                  controller.enqueue(ev({ type: "token", text: part.text }));
+                }
               }
             }
-            const text = geminiChunkText(chunk);
-            if (text) {
-              assembled += text;
-              controller.enqueue(ev({ type: "token", text }));
+
+            if (dataCalls.length === 0) break;
+
+            // Echo the model's data-tool call parts verbatim (preserving
+            // thought_signature), then append their results, and loop so the
+            // model continues with real data in context.
+            contents.push({
+              role: "model",
+              parts: dataCalls.map((c) => c.part),
+            });
+            const responseParts: GeminiPart[] = [];
+            for (const c of dataCalls) {
+              const handle =
+                (c.args as { handle?: string } | null)?.handle || "";
+              // Transient status note (streamed for feedback, not persisted).
+              controller.enqueue(
+                ev({ type: "token", text: `_Looking up @${handle}…_\n\n` })
+              );
+              let result: unknown = { error: "unknown tool" };
+              if (c.name === "getCreatorData") {
+                try {
+                  result = await getCreatorDataForChat(handle, ws.workspaceId);
+                } catch (err) {
+                  result = { error: String(err) };
+                }
+              }
+              responseParts.push({
+                functionResponse: {
+                  name: c.name,
+                  response: (result ?? {}) as Record<string, unknown>,
+                },
+              });
             }
+            contents.push({ role: "user", parts: responseParts });
           }
         }
+        // Fallback: if the model emitted a tool call as text (a ```tool:<name>
+        // {json}``` block) instead of a real function call, recover it. Convert
+        // each into a structured tool call, surface it as a card, and strip it
+        // from the persisted/displayed text so no raw JSON leaks through.
+        if (assembled.includes("```tool:")) {
+          const { cleaned, calls } = extractToolCalls(assembled);
+          if (calls.length > 0) {
+            for (const c of calls) {
+              toolCalls.push(c);
+              controller.enqueue(
+                ev({ type: "tool-call", name: c.name, args: c.args })
+              );
+            }
+            assembled = cleaned;
+          }
+        }
+
         if (!assembled && toolCalls.length === 0) {
           controller.enqueue(ev({ type: "error", message: "empty response" }));
           controller.close();

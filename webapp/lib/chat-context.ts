@@ -69,7 +69,15 @@ You only know the context the user explicitly attaches (mentions, pasted text, u
 
 # Tool Routing
 
-You can call tools the app exposes. Use them only when needed, keep outputs grounded in tool results, and never claim you've used a tool you didn't use. If a capability isn't available via tools here, say so plainly.
+You can call tools the app exposes. Default to plain prose. Reach for a card tool only when it clearly helps, and never claim a tool you did not use. Keep tool outputs grounded in real context (mentions, attached items, retrieved data). Never invent post ids, handles, or metrics.
+
+- getCreatorData: ALWAYS call this FIRST whenever the user asks about a specific creator by name or handle (analyze, summarize, breakdown, "stats for X", "show X's posts"). It returns that creator's real saved data: followers, posts indexed, total and average views, engagement rate, outlier mean and median, and top posts with ids. The result comes back to you only; the user does not see it. Use those exact numbers to fill the cards below. If the result has an error field, the creator is not saved, so tell the user that plainly and do not make up numbers.
+- creatorSnapshot: after getCreatorData succeeds, render the creator's real metrics. Fill only fields you got back. Example: "give me a snapshot of @nathan" -> call getCreatorData, then creatorSnapshot.
+- draftDocument: when the deliverable is a structured, keep-worthy document with sections or a table. Pick kind breakdown, analysis, plan, or other. Ground every number in getCreatorData output. Example: "break down why this creator works" -> getCreatorData, then draftDocument breakdown.
+- showSocialPosts: when the user wants to see specific posts. Use the post ids returned by getCreatorData (topPosts) or ids from mentions. Never fabricate ids.
+- showBoostVariations: when the user asks for multiple ready-to-publish takes on one idea or post. Example: "give me 4 hooks for this reel."
+
+If a card does not fit, answer in prose.
 `;
 
 export async function buildSystemPrompt(chat: Chat): Promise<string> {

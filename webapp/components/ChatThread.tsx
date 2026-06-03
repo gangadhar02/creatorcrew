@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, X } from "lucide-react";
 import { Streamdown } from "streamdown";
@@ -33,9 +33,18 @@ import {
 import type { Chat, ChatMessage } from "@/lib/types-chat";
 import MentionAutocomplete, { type MentionHit } from "./MentionAutocomplete";
 import VariationsCardList from "./VariationsCardList";
-import type { ShowBoostVariationsArgs } from "@/lib/tools";
+import DocumentCard from "./DocumentCard";
+import SocialPostsCard from "./SocialPostsCard";
+import CreatorAnalysisCard from "./CreatorAnalysisCard";
+import type {
+  ShowBoostVariationsArgs,
+  DraftDocumentArgs,
+  ShowSocialPostsArgs,
+  CreatorSnapshotArgs,
+} from "@/lib/tools";
 import { readNdjsonStream } from "@/lib/chat-stream";
-import { filesToAttachments } from "@/lib/chat-files";
+import { filesToAttachments, type ChatAttachment } from "@/lib/chat-files";
+import { takePendingChat } from "@/lib/pending-chat";
 
 type Mention = { kind: "post" | "creator" | "list"; id: string; label: string };
 
@@ -56,6 +65,23 @@ export default function ChatThread({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoSentRef = useRef(false);
+
+  // First message handed off from the home composer: fire it through the normal
+  // streaming path on mount so the answer renders live here. Guarded so it runs
+  // once and never on a chat that already has messages.
+  useEffect(() => {
+    if (autoSentRef.current || initialMessages.length > 0) return;
+    const pending = takePendingChat(chat.id);
+    if (!pending?.message) return;
+    autoSentRef.current = true;
+    void sendMessage({
+      fullMessage: pending.message,
+      mentions: pending.mentions ?? [],
+      attachments: pending.attachments,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.id]);
 
   // Detect @-mention typing
   useEffect(() => {
@@ -89,10 +115,6 @@ export default function ChatThread({
     const text = input.trim();
     const files = pendingFiles;
     if ((!text && files.length === 0) || streaming) return;
-    const userTempId = `tmp-user-${Date.now()}`;
-    const assistantTempId = `tmp-assist-${Date.now()}`;
-    setStreaming(true);
-    setStreamingMessageId(assistantTempId);
     setInput("");
     const mentions = pendingMentions;
     setPendingMentions([]);
@@ -101,6 +123,26 @@ export default function ChatThread({
       ? `\n\n${files.map((f) => `📎 ${f.name}`).join("\n")}`
       : "";
     const fullMessage = `${text}${fileNote}`.trim();
+    const attachments = files.length
+      ? await filesToAttachments(files)
+      : undefined;
+    await sendMessage({ fullMessage, mentions, attachments });
+  }
+
+  async function sendMessage({
+    fullMessage,
+    mentions,
+    attachments,
+  }: {
+    fullMessage: string;
+    mentions: Mention[];
+    attachments?: ChatAttachment[];
+  }) {
+    if (!fullMessage || streaming) return;
+    const userTempId = `tmp-user-${Date.now()}`;
+    const assistantTempId = `tmp-assist-${Date.now()}`;
+    setStreaming(true);
+    setStreamingMessageId(assistantTempId);
 
     // Optimistic user message
     setMessages((m) => [
@@ -137,9 +179,7 @@ export default function ChatThread({
           chat_id: chat.id,
           message: fullMessage,
           mentions: mentions.length > 0 ? mentions : undefined,
-          attachments: files.length
-            ? await filesToAttachments(files)
-            : undefined,
+          attachments,
         }),
       });
       if (!res.body) throw new Error("no response body");
@@ -387,7 +427,11 @@ export default function ChatThread({
   );
 }
 
-function ChatMessageView({
+// Memoized so a completed message doesn't re-render on every streaming token of
+// a later message. During streaming, setMessages maps over the list and returns
+// the SAME object reference for untouched messages, so memo's shallow prop check
+// (`m` identity + `streaming` flag) skips them — only the live message re-renders.
+const ChatMessageView = memo(function ChatMessageView({
   m,
   streaming,
 }: {
@@ -419,7 +463,7 @@ function ChatMessageView({
           </Reasoning>
         )}
 
-        {/* Tool-call renderings (showBoostVariations) */}
+        {/* Tool-call renderings (generative-UI cards) */}
         {!isUser &&
           toolCalls.map((tc, i) => {
             if (tc.name === "showBoostVariations") {
@@ -428,6 +472,44 @@ function ChatMessageView({
                 return (
                   <div key={i} className="my-2">
                     <VariationsCardList variations={args.variations} />
+                  </div>
+                );
+              }
+            }
+            if (tc.name === "draftDocument") {
+              const args = tc.args as DraftDocumentArgs;
+              if (args?.title && args?.content) {
+                return (
+                  <div key={i} className="my-2">
+                    <DocumentCard
+                      kind={args.kind ?? "other"}
+                      title={args.title}
+                      content={args.content}
+                    />
+                  </div>
+                );
+              }
+            }
+            if (tc.name === "showSocialPosts") {
+              const args = tc.args as ShowSocialPostsArgs;
+              if (Array.isArray(args?.postIds) && args.postIds.length > 0) {
+                return (
+                  <div key={i} className="my-2">
+                    <SocialPostsCard
+                      postIds={args.postIds}
+                      handle={args.handle}
+                      note={args.note}
+                    />
+                  </div>
+                );
+              }
+            }
+            if (tc.name === "creatorSnapshot") {
+              const args = tc.args as CreatorSnapshotArgs;
+              if (args?.handle && args?.platform) {
+                return (
+                  <div key={i} className="my-2">
+                    <CreatorAnalysisCard args={args} />
                   </div>
                 );
               }
@@ -446,7 +528,9 @@ function ChatMessageView({
       </MessageContent>
     </Message>
   );
-}
+});
+
+ChatMessageView.displayName = "ChatMessageView";
 
 function ChatTitlePicker({
   currentChatId,
