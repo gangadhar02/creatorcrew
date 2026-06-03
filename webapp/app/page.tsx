@@ -3,12 +3,11 @@ import { headers } from "next/headers";
 import { Nav } from "@/components/marketing/Nav";
 import { Hero } from "@/components/marketing/Hero";
 import { SocialProof } from "@/components/marketing/SocialProof";
-import { ProblemCards } from "@/components/marketing/ProblemCards";
-import { BigIdea } from "@/components/marketing/BigIdea";
-import { Features } from "@/components/marketing/Features";
-import { HowItWorks } from "@/components/marketing/HowItWorks";
-import { Differentiators } from "@/components/marketing/Differentiators";
-import { Roadmap } from "@/components/marketing/Roadmap";
+import { FeatureCarousel } from "@/components/marketing/FeatureCarousel";
+import { FounderStory } from "@/components/marketing/FounderStory";
+import { CaseStudy } from "@/components/marketing/CaseStudy";
+import { InsideStudio } from "@/components/marketing/InsideStudio";
+import { Testimonial } from "@/components/marketing/Testimonial";
 import { Pricing } from "@/components/marketing/Pricing";
 import { Faq } from "@/components/marketing/Faq";
 import { FinalCta } from "@/components/marketing/FinalCta";
@@ -40,12 +39,11 @@ export default async function LandingPage() {
       <main>
         <Hero />
         <SocialProof />
-        <ProblemCards />
-        <BigIdea />
-        <Features />
-        <HowItWorks />
-        <Differentiators />
-        <Roadmap />
+        <FeatureCarousel />
+        <FounderStory />
+        <CaseStudy />
+        <InsideStudio />
+        <Testimonial />
         <Pricing region={region} />
         <Faq />
         <FinalCta />

@@ -335,3 +335,31 @@ html.sidebar-collapsed aside[data-role="app-sidebar"] .sidebar-nav-link > span {
   background-image: radial-gradient(circle, currentColor 1px, transparent 1px);
   background-size: 24px 24px;
 }
+
+/* Brand highlight for a headline phrase — a thick, soft underline behind the
+   text using a gradient so descenders stay readable. */
+.creatorcrew-landing .brand-highlight {
+  background-image: linear-gradient(
+    to top,
+    var(--brand) 0%,
+    var(--brand) 18%,
+    transparent 18%,
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  padding: 0 0.06em;
+}
+
+/* Horizontal scroll-snap track for the feature carousel. Scrollbar hidden;
+   arrow buttons drive scrollBy(). */
+.creatorcrew-landing .snap-x-track {
+  scroll-snap-type: x mandatory;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.creatorcrew-landing .snap-x-track::-webkit-scrollbar {
+  display: none;
+}
+.creatorcrew-landing .snap-x-track > * {
+  scroll-snap-align: start;
+}

@@ -38,11 +38,11 @@ export function Pricing({ region = "USD" }: { region?: Region }) {
     <section id="pricing" className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">Pricing</span>
+          <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">Free to start</span>
           <h2 className="font-display text-3xl md:text-5xl font-semibold leading-tight mt-3 text-balance">
-            Replace 3+ tools with one.
+            Pick the size of your crew.
           </h2>
-          <p className="text-muted-foreground mt-4">Start free. Upgrade when you're shipping daily.</p>
+          <p className="text-muted-foreground mt-4">Begin free. Move up only when your crew has earned a spot in your routine.</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto mt-12">

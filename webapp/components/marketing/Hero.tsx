@@ -1,5 +1,6 @@
 "use client";
 
+import { Play } from "lucide-react";
 import { EmailCaptureForm } from "./EmailCaptureForm";
 import { HeroMockup } from "./HeroMockup";
 
@@ -10,23 +11,31 @@ export function Hero() {
       <div className="relative max-w-7xl mx-auto text-center">
         <a href="#features" className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-[11px] font-medium text-muted-foreground mb-7 hover:text-foreground transition-colors">
           <span className="size-1.5 rounded-full bg-brand" />
-          New · Meet your AI content crew
+          New · Put any creator on your crew&apos;s radar
         </a>
-        <h1 className="font-display text-5xl md:text-7xl font-semibold leading-[1.02] text-balance max-w-[18ch] mx-auto mb-7">
-          A crew of AI agents that create content with you.
+        <h1 className="font-display text-5xl md:text-7xl font-semibold leading-[1.02] text-balance max-w-[20ch] mx-auto mb-7">
+          A crew of AI agents that turn what&apos;s trending into{" "}
+          <span className="brand-highlight">your next post.</span>
         </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-[52ch] mx-auto mb-10 text-pretty">
-          CreatorCrew is your AI second brain for content. Your crew tracks what&apos;s trending in your niche, learns your voice from your past posts, then ideates and writes your next post in your tone.
+        <p className="text-lg md:text-xl text-muted-foreground max-w-[54ch] mx-auto mb-10 text-pretty">
+          CreatorCrew watches your niche, studies the creators you admire, and learns how you sound. Every idea and draft comes back ready to post, in your voice, across reels, video, and text.
         </p>
 
-        <EmailCaptureForm />
+        <div className="flex flex-col items-center gap-4">
+          <EmailCaptureForm />
+          <a
+            href="#features"
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent"
+          >
+            <Play className="size-3.5 fill-current" />
+            See how it works
+          </a>
+        </div>
 
-        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <div className="mt-5 flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <span>Free forever plan</span>
           <span aria-hidden>·</span>
-          <span>No credit card</span>
-          <span aria-hidden>·</span>
-          <a href="#how" className="underline-offset-4 hover:underline">See how it works</a>
+          <span>No credit card required</span>
         </div>
 
         <div className="mt-16 md:mt-20">
