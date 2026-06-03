@@ -5,12 +5,12 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { q: "What is CreatorCrew?", a: "Your AI creative second brain — it turns saved inspiration into finished content in your voice." },
-  { q: "How does it know my voice?", a: "CreatorCrew analyzes your past content and lets you capture your writing style, then generates ideas and drafts that sound like you." },
-  { q: "Do I need to give my Instagram password?", a: "No. You connect or import your saves; we never ask for risky credentials." },
-  { q: "Which platforms does it support?", a: "Instagram today. More platforms are coming — start with CreatorCrew and we'll grow with you." },
-  { q: "Is there a free plan?", a: "Yes — start free with no credit card. Upgrade when you're ready to ship daily." },
-  { q: "Can it write posts for me?", a: "It ideates and drafts in your voice; you always stay in control of the final post." },
+  { q: "What is CreatorCrew?", a: "Your AI second brain for content. A crew of AI agents that tracks your niche, learns your voice, and turns inspiration into finished posts in your tone." },
+  { q: "How does it know my voice?", a: "Your crew analyzes your past content and lets you capture your writing style, then generates ideas and drafts that sound like you." },
+  { q: "Do I need to give my Instagram password?", a: "No. You connect or import your saves, and we never ask for risky credentials." },
+  { q: "Which platforms does it support?", a: "Instagram today. More platforms are coming, so start with CreatorCrew and we'll grow with you." },
+  { q: "Is there a free plan?", a: "Yes. Start free with no credit card. Upgrade when you're ready to ship daily." },
+  { q: "Can it write posts for me?", a: "Your crew ideates and drafts in your voice, and you always stay in control of the final post." },
 ];
 
 export function Faq() {

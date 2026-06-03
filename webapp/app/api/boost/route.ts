@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       context_id: postId,
       voice_id: body.voice_id ?? null,
       message,
-      title: `Chat — @${p.creator.handle}`,
+      title: `Chat with @${p.creator.handle}`,
     });
   }
 
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       context_id: postId,
       voice_id: body.voice_id ?? null,
       message: userMessage,
-      title: `${preset.title} — ${post.creator.handle}`,
+      title: `${preset.title} · ${post.creator.handle}`,
       system_prompt: preset.systemPrompt,
       tool: preset.requiresTool,
     });
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       context_id: postId,
       voice_id: body.voice_id ?? null,
       message: preset.prompt,
-      title: `${preset.label} — boost`,
+      title: `${preset.label} boost`,
     });
   }
 

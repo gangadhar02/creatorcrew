@@ -3,9 +3,9 @@
 import { LinkIcon, MessagesSquare, Wand2 } from "lucide-react";
 
 const items = [
-  { icon: LinkIcon, title: "Link-in-bio", body: "A beautiful, customizable link-in-bio page — built into the same tool." },
+  { icon: LinkIcon, title: "Link-in-bio", body: "A beautiful, customizable link-in-bio page, built into the same tool." },
   { icon: MessagesSquare, title: "DM automation", body: "Auto-reply to comments and DMs, run comment-to-DM funnels, turn engagement into leads." },
-  { icon: Wand2, title: "AI carousels & videos", body: "Go from idea to finished carousel or short-form video — all in your style." },
+  { icon: Wand2, title: "AI carousels & videos", body: "Go from idea to finished carousel or short-form video, all in your style." },
 ];
 
 export function Roadmap() {

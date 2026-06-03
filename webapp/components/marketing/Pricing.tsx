@@ -1,6 +1,3 @@
-"use client";
-
-import { useState } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +6,7 @@ type Region = "USD" | "INR";
 const tiers = [
   {
     name: "Free",
-    tagline: "Try it — limited saves, ideas, and analyses.",
+    tagline: "Try it. Limited saves, ideas, and analyses.",
     price: { USD: "$0", INR: "₹0" },
     cta: "Start free",
     href: "/login",
@@ -18,7 +15,7 @@ const tiers = [
   },
   {
     name: "Creator",
-    tagline: "For active creators — generous AI credits, voice, canvas.",
+    tagline: "For active creators. Generous AI credits, voice, and canvas.",
     price: { USD: "$19", INR: "₹499" },
     cta: "Get Creator",
     href: "/subscribe?plan=creator",
@@ -27,7 +24,7 @@ const tiers = [
   },
   {
     name: "Pro",
-    tagline: "Power creators — more credits + early access to Bio & DMs.",
+    tagline: "For power creators. More credits plus early access to Bio and DMs.",
     price: { USD: "$39", INR: "₹1,299" },
     cta: "Go Pro",
     href: "/subscribe?plan=pro",
@@ -36,41 +33,19 @@ const tiers = [
   },
 ];
 
-export function Pricing() {
-  const [region, setRegion] = useState<Region>("USD");
-
+export function Pricing({ region = "USD" }: { region?: Region }) {
   return (
     <section id="pricing" className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">Pricing</span>
+          <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">Free to start</span>
           <h2 className="font-display text-3xl md:text-5xl font-semibold leading-tight mt-3 text-balance">
-            Replace 3+ tools with one.
+            Pick the size of your crew.
           </h2>
-          <p className="text-muted-foreground mt-4">Start free. Upgrade when you're shipping daily.</p>
+          <p className="text-muted-foreground mt-4">Begin free. Move up only when your crew has earned a spot in your routine.</p>
         </div>
 
-        <div className="flex justify-center mb-12">
-          <div className="inline-flex p-1 bg-secondary rounded-full">
-            {(["USD", "INR"] as Region[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRegion(r)}
-                className={cn(
-                  "px-4 py-1.5 rounded-full text-xs font-semibold transition-colors",
-                  region === r
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {r === "USD" ? "United States · USD" : "India · INR"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto mt-12">
           {tiers.map((t) => (
             <div
               key={t.name}

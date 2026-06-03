@@ -73,7 +73,7 @@ export default function CreatorsGrid({ creators }: { creators: Creator[] }) {
       const skipped = data.skipped ?? 0;
       toast.success(
         `Removed ${removed} creator${removed === 1 ? "" : "s"}` +
-          (skipped > 0 ? ` (${skipped} skipped — not in your workspace)` : "")
+          (skipped > 0 ? ` (${skipped} skipped, not in your workspace)` : "")
       );
       exitSelect();
       router.refresh();
@@ -271,7 +271,7 @@ export default function CreatorsGrid({ creators }: { creators: Creator[] }) {
 }
 
 function fmtNum(n: number | null | undefined): string {
-  if (!n) return "—";
+  if (!n) return "–";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);

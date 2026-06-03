@@ -25,8 +25,8 @@ export default async function SettingsPage() {
         <Card className="p-4">
           <div className="grid gap-3">
             <Row label="Name" value={ws.workspaceName} />
-            <Row label="Owner email" value={ws.workspaceEmail || "—"} />
-            <Row label="ID" value={ws.workspaceId || "—"} />
+            <Row label="Owner email" value={ws.workspaceEmail || "–"} />
+            <Row label="ID" value={ws.workspaceId || "–"} />
           </div>
         </Card>
       </section>

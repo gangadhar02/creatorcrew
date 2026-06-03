@@ -48,7 +48,7 @@ export default async function BoardsPage() {
         <div>
           <h1 className="text-3xl font-semibold">Boards</h1>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-            Curated workspaces. Save posts, jot cards, draft documents — chat
+            Curated workspaces. Save posts, jot cards, draft documents, and chat
             with the whole board to generate ideas in your voice.
           </p>
         </div>

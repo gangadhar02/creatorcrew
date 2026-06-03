@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Sparkles, Search, Hash, MessageSquare } from "lucide-react";
 
 export function HeroMockup() {
@@ -12,9 +13,8 @@ export function HeroMockup() {
         {/* Sidebar */}
         <aside className="hidden md:flex flex-col w-52 border-r border-border bg-card p-4 gap-4">
           <div className="flex items-center gap-2 pb-3 border-b border-border">
-            <span className="size-6 rounded-md bg-brand grid place-items-center">
-              <span className="size-2 rounded-[2px] bg-brand-foreground rotate-12" />
-            </span>
+            <Image src="/logo.png" alt="" width={24} height={24} className="size-6 shrink-0 dark:hidden" />
+            <Image src="/logo-dark.png" alt="" width={24} height={24} className="hidden size-6 shrink-0 dark:block" />
             <span className="font-display text-sm font-semibold">CreatorCrew</span>
           </div>
           <div className="space-y-1.5">
@@ -47,7 +47,7 @@ export function HeroMockup() {
           {/* Floating cards */}
           <FloatingCard className="absolute top-24 left-6 md:left-12 w-44 md:w-52 rotate-[-3deg] bg-amber-50 ring-amber-300/40 text-amber-900">
             <div className="text-[9px] uppercase tracking-wider font-semibold mb-1.5 opacity-70">Post idea</div>
-            <div className="text-[11px] md:text-xs font-medium leading-snug">The psychology of a clean desk — why creators ship more.</div>
+            <div className="text-[11px] md:text-xs font-medium leading-snug">The psychology of a clean desk, and why creators ship more.</div>
           </FloatingCard>
 
           <FloatingCard className="absolute top-44 left-1/3 w-44 md:w-56 rotate-[2deg] p-0 overflow-hidden">
@@ -82,7 +82,7 @@ export function HeroMockup() {
               I analyzed your 12 saves on this board. Want a thread on "what to remove from your desk"?
             </div>
             <div className="bg-brand/10 ring-1 ring-brand/20 rounded-xl rounded-tr-sm px-3 py-2.5 text-[11px] leading-relaxed text-foreground ml-6">
-              Yes — make it sound like me, hook first.
+              Yes, make it sound like me. Hook first.
             </div>
             <div className="bg-secondary rounded-xl rounded-tl-sm px-3 py-2.5 text-[11px] leading-relaxed text-foreground/80">
               <span className="font-semibold">Hook:</span> "Your desk isn't messy. It's loud." Drafting 6 lines in your voice…

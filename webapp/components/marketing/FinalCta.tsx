@@ -11,10 +11,11 @@ export function FinalCta() {
         <div className="relative">
           <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">Start free</span>
           <h2 className="font-display text-4xl md:text-6xl font-semibold leading-[1.05] mt-4 mb-5 text-balance max-w-3xl mx-auto">
-            Your best content is hiding in your saves. Let's get it out.
+            The feed is full of sameness. Your crew keeps you{" "}
+            <span className="text-brand">sounding like you.</span>
           </h2>
           <p className="text-background/70 mb-9 max-w-xl mx-auto">
-            Join the waitlist — early creators get extended AI credits.
+            Free forever plan. No credit card. Your boards stay yours even if you never upgrade.
           </p>
           <EmailCaptureForm variant="dark" />
         </div>

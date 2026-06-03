@@ -74,7 +74,7 @@ export async function POST() {
     return NextResponse.json(
       {
         error:
-          "Sync not wired up: set SYNC_DISPATCH_TOKEN (or ANALYZER_DISPATCH_TOKEN) — a GitHub PAT with Actions write — to trigger the sync.yml workflow. For local dev, set PYTHON_PROJECT_DIR / PYTHON_BIN instead.",
+          "Sync not wired up: set SYNC_DISPATCH_TOKEN (or ANALYZER_DISPATCH_TOKEN), a GitHub PAT with Actions write, to trigger the sync.yml workflow. For local dev, set PYTHON_PROJECT_DIR / PYTHON_BIN instead.",
       },
       { status: 500 }
     );

@@ -1,17 +1,17 @@
 "use client";
 
-import { FolderOpen, FileX, Bot } from "lucide-react";
+import { TrendingUp, FileX, Bot } from "lucide-react";
 
 const items = [
   {
-    icon: FolderOpen,
-    title: "Scattered inspiration",
-    body: "Saved folders, screenshots, bookmarks — all over the place, and never used.",
+    icon: TrendingUp,
+    title: "Trends move faster than you",
+    body: "By the time you spot what's working in your niche, the wave has passed. Doomscrolling feeds all day is not a content strategy.",
   },
   {
     icon: FileX,
     title: "Blank-page burnout",
-    body: "Figuring out what to post next is a grind. Every single day.",
+    body: "Figuring out what to post next is a grind. Every single day, and you're doing it alone.",
   },
   {
     icon: Bot,
@@ -27,7 +27,7 @@ export function ProblemCards() {
         <div className="max-w-2xl mb-14">
           <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">The problem</span>
           <h2 className="font-display text-3xl md:text-5xl font-semibold leading-tight mt-3 text-balance">
-            Inspiration in, nothing out.
+            You're a one-person content team.
           </h2>
         </div>
         <div className="grid md:grid-cols-3 gap-5">

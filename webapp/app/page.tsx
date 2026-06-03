@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Nav } from "@/components/marketing/Nav";
 import { Hero } from "@/components/marketing/Hero";
 import { SocialProof } from "@/components/marketing/SocialProof";
-import { ProblemCards } from "@/components/marketing/ProblemCards";
-import { BigIdea } from "@/components/marketing/BigIdea";
-import { Features } from "@/components/marketing/Features";
-import { HowItWorks } from "@/components/marketing/HowItWorks";
-import { Differentiators } from "@/components/marketing/Differentiators";
-import { Roadmap } from "@/components/marketing/Roadmap";
+import { FeatureCarousel } from "@/components/marketing/FeatureCarousel";
+import { FounderStory } from "@/components/marketing/FounderStory";
+import { CaseStudy } from "@/components/marketing/CaseStudy";
+import { InsideStudio } from "@/components/marketing/InsideStudio";
+import { Testimonial } from "@/components/marketing/Testimonial";
 import { Pricing } from "@/components/marketing/Pricing";
 import { Faq } from "@/components/marketing/Faq";
 import { FinalCta } from "@/components/marketing/FinalCta";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "CreatorCrew — Your AI creative second brain",
+  title: "CreatorCrew · Your AI content crew",
   description:
-    "Turn everything you save into your next post. CreatorCrew learns your taste and helps you ideate, plan, and write — in your own voice.",
+    "A crew of AI agents that create content with you. CreatorCrew tracks what's trending in your niche, learns your voice from your past posts, then ideates and writes in your tone.",
 };
 
 /**
@@ -25,20 +25,26 @@ export const metadata: Metadata = {
  * tokens (defined in globals.css) so the landing keeps its own look without
  * affecting the rest of the app.
  */
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Geo-pick the pricing currency from Vercel's edge header. India sees INR;
+  // every other country (and local/preview, where the header is absent) sees
+  // USD.
+  const hdrs = await headers();
+  const country = (hdrs.get("x-vercel-ip-country") || "").toUpperCase();
+  const region: "USD" | "INR" = country === "IN" ? "INR" : "USD";
+
   return (
     <div className="creatorcrew-landing min-h-screen bg-background text-foreground">
       <Nav />
       <main>
         <Hero />
         <SocialProof />
-        <ProblemCards />
-        <BigIdea />
-        <Features />
-        <HowItWorks />
-        <Differentiators />
-        <Roadmap />
-        <Pricing />
+        <FeatureCarousel />
+        <FounderStory />
+        <CaseStudy />
+        <InsideStudio />
+        <Testimonial />
+        <Pricing region={region} />
         <Faq />
         <FinalCta />
       </main>

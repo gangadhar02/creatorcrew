@@ -22,12 +22,23 @@ const bricolage = Bricolage_Grotesque({
 
 export const metadata: Metadata = {
   title: "CreatorCrew",
-  description: "Local content studio — saves, vision analysis, ideation, voice, boards.",
+  description: "Your AI content crew: niche trends, voice, ideation, and drafts in one place.",
+  icons: {
+    icon: [
+      { url: "/favicon-light.png", type: "image/png", media: "(prefers-color-scheme: light)" },
+      { url: "/favicon-dark.png", type: "image/png", media: "(prefers-color-scheme: dark)" },
+      { url: "/favicon-light.png", type: "image/png" },
+    ],
+    apple: [{ url: "/favicon-light.png" }],
+  },
 };
 
 // Set `.dark` on <html> before hydration based on stored preference (or OS),
-// inline so there's no flash-of-light-mode on first paint.
-const THEME_SCRIPT = `
+// inline so there's no flash-of-light-mode on first paint. Only the app
+// (authenticated) honors dark mode; the public marketing/login surface is
+// always light (the landing is designed light-only), so we strip any stale
+// `.dark` there instead.
+const THEME_SCRIPT_APP = `
 (function () {
   try {
     var stored = localStorage.getItem('theme');
@@ -37,6 +48,10 @@ const THEME_SCRIPT = `
     var sb = localStorage.getItem('eden.sidebar.collapsed:v1');
     if (sb === '1') document.documentElement.classList.add('sidebar-collapsed');
   } catch (_) {}
+})();`;
+const THEME_SCRIPT_LANDING = `
+(function () {
+  try { document.documentElement.classList.remove('dark'); } catch (_) {}
 })();`;
 
 export default async function RootLayout({
@@ -85,7 +100,11 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: authed ? THEME_SCRIPT_APP : THEME_SCRIPT_LANDING,
+          }}
+        />
       </head>
       <body className="min-h-full">
         <TooltipProvider delay={200}>

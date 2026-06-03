@@ -126,7 +126,7 @@ export default function SettingsDialog({
               <Placeholder
                 title="Members"
                 desc="Invite teammates to your workspace."
-                note="This build is single-workspace — member management isn't available yet."
+                note="This build is single-workspace, so member management isn't available yet."
               />
             )}
             {section === "affiliate" && (
@@ -140,7 +140,7 @@ export default function SettingsDialog({
               <Placeholder
                 title="Billing"
                 desc="Manage your plan and payment method."
-                note="This build is free and unmetered — nothing to bill."
+                note="This build is free and unmetered, so nothing to bill."
               />
             )}
           </div>

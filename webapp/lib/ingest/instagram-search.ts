@@ -14,7 +14,6 @@ import {
 } from "../instagram";
 import { isScrapeAccountConfigured, igCookieRefreshHint } from "../ig-config";
 import {
-  getDefaultWorkspaceId,
   upsertCreator,
   upsertCreatorPost,
 } from "../dual-write";
@@ -32,6 +31,7 @@ function authorFromMedia(item: IGMediaItem): {
 
 export async function searchInstagramByKeyword(
   query: string,
+  workspaceId: string,
   opts: { maxResults?: number } = {}
 ): Promise<{ ingested: number; warning?: string }> {
   const q = query.trim();
@@ -64,7 +64,9 @@ export async function searchInstagramByKeyword(
     };
   }
 
-  const wsId = await getDefaultWorkspaceId();
+  // Scope ingest to the searching workspace — NOT getDefaultWorkspaceId(),
+  // which returns the oldest workspace and leaks results across accounts.
+  const wsId = workspaceId;
   if (!wsId) throw new Error("No workspace configured");
 
   const creatorCache = new Map<string, string>();

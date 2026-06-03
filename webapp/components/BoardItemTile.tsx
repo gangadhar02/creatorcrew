@@ -154,7 +154,7 @@ function DocumentTile({
         </div>
       </div>
       <div className="text-xs text-[var(--muted-foreground)] line-clamp-5">
-        {bodyPreview || "(empty document — click to open)"}
+        {bodyPreview || "(empty document, click to open)"}
       </div>
       <div className="mt-2 text-[10px] text-[var(--muted-foreground)] font-mono">
         Document → open to edit

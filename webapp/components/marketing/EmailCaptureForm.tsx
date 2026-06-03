@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -19,47 +19,23 @@ export function EmailCaptureForm({
 }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
+  const [pending, setPending] = useState(false);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const value = email.trim();
+    const value = email.trim().toLowerCase();
     if (!EMAIL_RE.test(value) || value.length > 255) {
       setError("Please enter a valid email");
       return;
     }
-    try {
-      const raw = localStorage.getItem("creatorcrew_waitlist");
-      const list: string[] = raw ? JSON.parse(raw) : [];
-      if (!list.includes(value)) list.push(value);
-      localStorage.setItem("creatorcrew_waitlist", JSON.stringify(list));
-    } catch {
-      /* ignore storage errors */
-    }
     setError(null);
-    setSubmitted(true);
+    setPending(true);
+    // Hand off to the sign-up / sign-in flow with the email prefilled.
+    // A hard navigation lets the bare-domain proxy 308 to `studio.` if needed.
+    window.location.href = `/login?email=${encodeURIComponent(value)}`;
   }
 
   const isDark = variant === "dark";
-
-  if (submitted) {
-    return (
-      <div
-        className={cn(
-          "flex items-center justify-center gap-3 max-w-md mx-auto rounded-2xl px-5 py-4 text-sm font-medium",
-          isDark
-            ? "bg-white/10 text-background ring-1 ring-white/15"
-            : "bg-brand/10 text-foreground ring-1 ring-brand/20",
-          className,
-        )}
-      >
-        <span className="grid place-items-center size-6 rounded-full bg-brand text-brand-foreground">
-          <Check className="size-3.5" strokeWidth={3} />
-        </span>
-        You're on the list — we'll be in touch.
-      </div>
-    );
-  }
 
   return (
     <form
@@ -93,7 +69,8 @@ export function EmailCaptureForm({
         />
         <button
           type="submit"
-          className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition-transform hover:brightness-110 active:scale-[0.98]"
+          disabled={pending}
+          className="inline-flex items-center gap-2 whitespace-nowrap rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition-transform hover:brightness-110 active:scale-[0.98] disabled:opacity-70"
         >
           {cta}
           <ArrowRight className="size-4" />

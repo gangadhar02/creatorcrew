@@ -332,7 +332,7 @@ function PostModal({
               value={
                 post.outlier_multiplier
                   ? `${post.outlier_multiplier.toFixed(2)}×`
-                  : "—"
+                  : "–"
               }
               highlight={
                 !!post.outlier_multiplier && post.outlier_multiplier >= 2
@@ -346,7 +346,7 @@ function PostModal({
               value={
                 post.engagement_rate
                   ? `${post.engagement_rate.toFixed(2)}%`
-                  : "—"
+                  : "–"
               }
             />
           </div>

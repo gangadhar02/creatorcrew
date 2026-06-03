@@ -3,9 +3,9 @@
 import { Plug, Brain, PenLine } from "lucide-react";
 
 const steps = [
-  { icon: Plug, title: "Connect & save", body: "Import your Instagram saves and bookmarks, or save any post into CreatorCrew." },
-  { icon: Brain, title: "Let AI learn your taste", body: "It analyzes your content, captures your voice, and surfaces what performs." },
-  { icon: PenLine, title: "Create", body: "Ideate, plan on the canvas, and write your next post — in your voice — with your AI copilot." },
+  { icon: Plug, title: "Connect your world", body: "Import your Instagram saves and bookmarks, and tell your crew the niche you create in." },
+  { icon: Brain, title: "Your crew learns you", body: "It studies your niche, captures your voice from your past posts, and tracks what's performing." },
+  { icon: PenLine, title: "Create together", body: "Ideate, plan on the canvas, and write your next post in your voice, with your AI crew." },
 ];
 
 export function HowItWorks() {
@@ -15,7 +15,7 @@ export function HowItWorks() {
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-brand">How it works</span>
           <h2 className="font-display text-3xl md:text-5xl font-semibold leading-tight mt-3 text-balance">
-            Three steps from save to post.
+            From trend to post in three steps.
           </h2>
         </div>
         <div className="grid md:grid-cols-3 gap-6">

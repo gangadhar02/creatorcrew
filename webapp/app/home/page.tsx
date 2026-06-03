@@ -104,7 +104,7 @@ const STARTER_TEMPLATES: {
 ];
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "–";
   // Fixed en-US format avoids SSR/client locale hydration mismatches.
   return new Date(iso).toLocaleDateString("en-US", {
     month: "numeric",
@@ -296,7 +296,7 @@ export default async function Dashboard() {
           <StatCard label="Content Ideas" value={totalIdeas} href="/ideas" />
           <StatCard
             label="Last sync"
-            value={runs[0] ? fmtDate(runs[0].started_at) : "—"}
+            value={runs[0] ? fmtDate(runs[0].started_at) : "–"}
             href="/saves"
             small
           />

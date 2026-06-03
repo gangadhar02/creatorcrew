@@ -11,16 +11,6 @@
 import { getSupabase } from "./supabase";
 import type { PlatformKind } from "./types";
 
-export async function getDefaultWorkspaceId(): Promise<string | null> {
-  const sb = getSupabase();
-  const { data } = await sb
-    .from("workspaces")
-    .select("id")
-    .order("created_at", { ascending: true })
-    .limit(1);
-  return (data?.[0] as { id: string } | undefined)?.id ?? null;
-}
-
 /** Find-or-create a creators row keyed by (workspace_id, platform, handle). */
 export async function upsertCreator(
   workspaceId: string,
@@ -131,17 +121,27 @@ export type CreatorPostUpsert = {
   raw_json?: unknown;
 };
 
-/** Find-or-create a creator_posts row keyed by (platform, platform_pk). */
+/**
+ * Find-or-create a creator_posts row.
+ *
+ * Dedup is scoped to the post's creator (which is per-workspace), NOT just
+ * (platform, platform_pk): creator_posts has no workspace_id column, so the
+ * workspace is reachable only via creator_id → creators.workspace_id. Keying
+ * globally would let one workspace's ingest of a public post reassign (steal)
+ * another workspace's existing row. With a creator_id, the same public post
+ * ingested by two workspaces correctly yields one row per workspace.
+ */
 export async function upsertCreatorPost(
   row: CreatorPostUpsert
 ): Promise<string | null> {
   const sb = getSupabase();
-  const existing = await sb
+  let lookup = sb
     .from("creator_posts")
     .select("id")
     .eq("platform", row.platform)
-    .eq("platform_pk", row.platform_pk)
-    .limit(1);
+    .eq("platform_pk", row.platform_pk);
+  if (row.creator_id) lookup = lookup.eq("creator_id", row.creator_id);
+  const existing = await lookup.limit(1);
   const existingId = (existing.data?.[0] as { id: string } | undefined)?.id;
 
   let postId: string | null = null;

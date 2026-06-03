@@ -71,7 +71,7 @@ export default function SavesRealtime() {
   if (!live) return null;
   return (
     <span
-      title="Live — new saves appear automatically"
+      title="Live. New saves appear automatically"
       className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
     >
       <Radio className="h-3 w-3 animate-pulse text-emerald-500" />

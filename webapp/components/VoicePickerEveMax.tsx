@@ -89,7 +89,7 @@ export default function VoicePickerEveMax({
         <DropdownMenuLabel>Read aloud voice</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => pick(null)}>
-          (none — text only)
+          (none, text only)
         </DropdownMenuItem>
         {voices.length === 0 ? (
           <DropdownMenuItem disabled>Loading voices…</DropdownMenuItem>

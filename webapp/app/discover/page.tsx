@@ -171,7 +171,9 @@ async function querySemanticDiscoverPosts(
   // and does NOT auto-create new creator rows for every author found.
   // Toggle exposed in the UI as "Pull fresh posts from the web".
   const webSearch = opts.fetchWeb
-    ? await ingestWebSearchForQuery(opts.q, opts.platforms, { count: 30 })
+    ? await ingestWebSearchForQuery(opts.q, opts.platforms, workspaceId, {
+        count: 30,
+      })
     : null;
 
   const result = await discover({
@@ -373,7 +375,7 @@ export default async function DiscoverPage({
 
       {relaxedOutlier && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-xs text-muted-foreground">
-          No posts met the default {DEFAULT_MIN_OUTLIER}× outlier filter — showing
+          No posts met the default {DEFAULT_MIN_OUTLIER}× outlier filter, showing
           all posts instead.{" "}
           <Link
             href={buildDiscoverKeepAllHref(sp)}

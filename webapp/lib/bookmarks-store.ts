@@ -4,7 +4,6 @@
  * Server-only.
  */
 import { getSupabase } from "./supabase";
-import { getDefaultWorkspaceId } from "./dual-write";
 import type { BookmarkDraft, BookmarkItem } from "./types-bookmarks";
 import { autoLayoutBookmarks } from "./bookmark-layout";
 
@@ -88,15 +87,18 @@ export async function applyTagsAndLayout(
   }
 }
 
-export async function syncAllBookmarks(opts: {
-  maxPerPlatform?: number;
-  autoTag?: boolean;
-}): Promise<{
+export async function syncAllBookmarks(
+  workspaceId: string,
+  opts: {
+    maxPerPlatform?: number;
+    autoTag?: boolean;
+  }
+): Promise<{
   instagram: { count: number; mediaEnriched?: number; warning?: string };
   x: { count: number; warning?: string };
   tagged: number;
 }> {
-  const wsId = await getDefaultWorkspaceId();
+  const wsId = workspaceId;
   if (!wsId) throw new Error("No workspace configured");
 
   const { fetchInstagramSavedPosts } = await import("./ig-bookmarks");
