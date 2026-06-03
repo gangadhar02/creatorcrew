@@ -5,6 +5,7 @@ import { Copy, Plus, CheckCheck, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import GenerativeCard from "./GenerativeCard";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,41 +86,39 @@ export default function VariationsCardList({
     }
   }
 
+  const saveAllAction = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            onClick={ensureBoards}
+            className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs hover:border-primary/40"
+          >
+            <CheckCheck className="h-3 w-3" /> Save all to board
+          </button>
+        }
+      />
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Choose board</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {(boards || []).length === 0 ? (
+          <DropdownMenuItem disabled>No boards yet</DropdownMenuItem>
+        ) : (
+          (boards || []).map((b) => (
+            <DropdownMenuItem key={b.id} onClick={() => insertAllToBoard(b.id)}>
+              {b.name}
+            </DropdownMenuItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-          {variations.length} variations
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button
-                onClick={ensureBoards}
-                className="inline-flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-xs hover:border-primary/40"
-              >
-                <CheckCheck className="h-3 w-3" /> Save all to board →
-              </button>
-            }
-          />
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Choose board</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {(boards || []).length === 0 ? (
-              <DropdownMenuItem disabled>No boards yet</DropdownMenuItem>
-            ) : (
-              (boards || []).map((b) => (
-                <DropdownMenuItem
-                  key={b.id}
-                  onClick={() => insertAllToBoard(b.id)}
-                >
-                  {b.name}
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+    <GenerativeCard
+      label={`${variations.length} VARIATIONS`}
+      action={saveAllAction}
+    >
       <div className="grid gap-2">
         {variations.map((v, i) => (
           <motion.div
@@ -192,7 +191,7 @@ export default function VariationsCardList({
           </motion.div>
         ))}
       </div>
-    </div>
+    </GenerativeCard>
   );
 }
 

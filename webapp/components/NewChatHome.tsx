@@ -9,8 +9,8 @@ import { toast } from "sonner";
 import ChatRow from "./ChatRow";
 import { BOOST_STARTERS, type StarterKey } from "@/lib/boost-starters";
 import type { Chat } from "@/lib/types-chat";
-import { streamChat } from "@/lib/chat-stream";
 import { filesToAttachments } from "@/lib/chat-files";
+import { setPendingChat } from "@/lib/pending-chat";
 import { Badge } from "@/components/ui/badge";
 import {
   PromptInput,
@@ -47,22 +47,26 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
       ? await filesToAttachments(files)
       : undefined;
 
-    let navigated = false;
-    const result = await streamChat(
-      { message: fullMessage, context_kind: "freeform", attachments },
-      {
-        onStart: (chatId) => {
-          navigated = true;
-          router.push(`/chats/${chatId}`);
-        },
-        onError: (msg) =>
-          toast.error("Couldn't start chat", { description: msg }),
+    // Create an empty chat, hand the prompt off in-memory, then navigate. The
+    // chat view fires the message through its own streaming send() on mount so
+    // the answer renders live in place (instead of streaming into this page,
+    // which is about to unmount).
+    try {
+      const res = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: text || fullMessage, context_kind: "freeform" }),
+      });
+      const data = (await res.json()) as { chat?: { id: string }; error?: string };
+      if (!res.ok || !data.chat?.id) {
+        throw new Error(data.error || "couldn't create chat");
       }
-    );
-    if (!navigated && result?.chat_id) {
-      router.push(`/chats/${result.chat_id}`);
+      setPendingChat(data.chat.id, { message: fullMessage, attachments });
+      router.push(`/chats/${data.chat.id}`);
+    } catch (e) {
+      toast.error("Couldn't start chat", { description: String(e) });
+      setSending(false);
     }
-    setSending(false);
   }
 
   const starters = Object.entries(BOOST_STARTERS) as [
