@@ -377,6 +377,13 @@ export default function ChatThread({
                 onKeyDown={onTextareaKeyDown}
                 placeholder="Ask anything…  (@ to add context)"
                 disabled={streaming}
+                // Tell password managers / form fillers to ignore this field;
+                // some inject input events into controlled textareas and cause a
+                // setState feedback loop ("Maximum update depth").
+                autoComplete="off"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-form-type="other"
               />
             </PromptInputBody>
 

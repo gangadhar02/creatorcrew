@@ -199,6 +199,13 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
                 }}
                 placeholder="Ask anything…  (@ to add context, + for files)"
                 disabled={sending}
+                // Tell password managers / form fillers to ignore this field;
+                // some inject input events into controlled textareas and cause a
+                // setState feedback loop ("Maximum update depth").
+                autoComplete="off"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-form-type="other"
               />
             </PromptInputBody>
 
