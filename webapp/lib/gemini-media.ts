@@ -94,19 +94,23 @@ async function downloadMediaItem(
   return out;
 }
 
-export async function runGeminiOnMedia(
-  mediaPk: string,
+/**
+ * Run Gemini on an already-known media item (e.g. a stored creator_posts
+ * raw_json, which carries video_versions / image_versions2). This avoids the
+ * Instagram cookie API call (fetchMediaByPk); only the CDN download remains,
+ * and those signed URLs can expire, so callers may fall back to the pk path.
+ */
+export async function runGeminiOnMediaItem(
+  item: IGMediaItem,
   prompt: string,
-  options: { model?: string; account?: IGAccount } = {}
+  options: { model?: string } = {}
 ): Promise<GeminiMediaResult> {
   if (!ai) throw new Error("GEMINI_API_KEY not configured");
   const model = options.model || "gemini-2.5-flash";
-  const account = options.account ?? "scraping";
 
-  const item = await fetchMediaByPk(mediaPk, account);
   const localFiles = await downloadMediaItem(item);
   if (localFiles.length === 0) {
-    throw new Error(`No downloadable media for ${mediaPk}`);
+    throw new Error("No downloadable media in item");
   }
 
   const uploaded: UploadedFile[] = [];
@@ -138,6 +142,21 @@ export async function runGeminiOnMedia(
       }
     }
   }
+}
+
+/**
+ * Fetch a post's media fresh from Instagram (cookie API) by its pk, then run
+ * Gemini on it. Use runGeminiOnMediaItem instead when you already have the
+ * media item (e.g. stored raw_json) to avoid the cookie call.
+ */
+export async function runGeminiOnMedia(
+  mediaPk: string,
+  prompt: string,
+  options: { model?: string; account?: IGAccount } = {}
+): Promise<GeminiMediaResult> {
+  const account = options.account ?? "scraping";
+  const item = await fetchMediaByPk(mediaPk, account);
+  return runGeminiOnMediaItem(item, prompt, { model: options.model });
 }
 
 // ---------------------------------------------------------------------------

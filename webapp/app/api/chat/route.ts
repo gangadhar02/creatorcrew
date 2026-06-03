@@ -29,7 +29,10 @@ import {
 } from "@/lib/tools";
 import { streamOpenRouter, type ORMessage } from "@/lib/openrouter";
 import { extractToolCalls, stripToolFences } from "@/lib/tool-text";
-import { getCreatorDataForChat } from "@/lib/creator-data";
+import {
+  getCreatorDataForChat,
+  analyzeCreatorPostsForChat,
+} from "@/lib/creator-data";
 import type { Chat } from "@/lib/types-chat";
 
 export const runtime = "nodejs";
@@ -435,16 +438,46 @@ export async function POST(request: NextRequest) {
             });
             const responseParts: GeminiPart[] = [];
             for (const c of dataCalls) {
-              const handle =
-                (c.args as { handle?: string } | null)?.handle || "";
-              // Transient status note (streamed for feedback, not persisted).
-              controller.enqueue(
-                ev({ type: "token", text: `_Looking up @${handle}…_\n\n` })
-              );
+              const args = (c.args as Record<string, unknown>) || {};
+              const handle = (args.handle as string) || "";
+              // Transient status notes (streamed for feedback, not persisted).
               let result: unknown = { error: "unknown tool" };
               if (c.name === "getCreatorData") {
+                controller.enqueue(
+                  ev({ type: "token", text: `_Looking up @${handle}…_\n\n` })
+                );
                 try {
                   result = await getCreatorDataForChat(handle, ws.workspaceId);
+                } catch (err) {
+                  result = { error: String(err) };
+                }
+              } else if (c.name === "analyzeCreatorPosts") {
+                controller.enqueue(
+                  ev({
+                    type: "token",
+                    text: `_Analyzing @${handle}'s posts (this can take a minute)…_\n\n`,
+                  })
+                );
+                try {
+                  result = await analyzeCreatorPostsForChat(
+                    {
+                      rawHandle: handle,
+                      workspaceId: ws.workspaceId,
+                      count:
+                        typeof args.count === "number" ? args.count : undefined,
+                      order:
+                        args.order === "top" || args.order === "latest"
+                          ? args.order
+                          : undefined,
+                      include: Array.isArray(args.include)
+                        ? (args.include as string[])
+                        : undefined,
+                    },
+                    (msg) =>
+                      controller.enqueue(
+                        ev({ type: "token", text: `_${msg}_\n\n` })
+                      )
+                  );
                 } catch (err) {
                   result = { error: String(err) };
                 }

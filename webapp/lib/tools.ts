@@ -264,6 +264,46 @@ export const GET_CREATOR_DATA_TOOL = {
 
 export type GetCreatorDataArgs = { handle: string };
 
+// ---------- analyzeCreatorPosts (server-executed DATA tool) ----------
+
+export const ANALYZE_CREATOR_POSTS_TOOL = {
+  name: "analyzeCreatorPosts",
+  description:
+    "Run real per-post content analysis for a saved creator: fetches their latest (or top) posts and returns each post's transcript and/or visual (vision) analysis, generating it on demand from the actual media when not already stored. Call this when the user asks to analyze a creator's content, scripts, hooks, transcripts, visuals, or 'what they post about'. This is slower than getCreatorData, so keep count small (1 to 4). After it returns, write the detailed analysis (usually a draftDocument) grounded in the returned transcripts and vision. If a post has an error field, note that its media could not be analyzed.",
+  parameters: {
+    type: Type.OBJECT,
+    required: ["handle"],
+    properties: {
+      handle: {
+        type: Type.STRING,
+        description: "Creator handle or name, without the @.",
+      },
+      count: {
+        type: Type.NUMBER,
+        description: "How many posts to analyze (1 to 4, default 3).",
+      },
+      order: {
+        type: Type.STRING,
+        enum: ["latest", "top"],
+        description: "latest = most recent posts, top = highest viewed.",
+      },
+      include: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING, enum: ["transcript", "vision"] },
+        description:
+          "Which analyses to run. Default both transcript and vision.",
+      },
+    },
+  },
+};
+
+export type AnalyzeCreatorPostsArgs = {
+  handle: string;
+  count?: number;
+  order?: "latest" | "top";
+  include?: ("transcript" | "vision")[];
+};
+
 // ---------- Aggregated auto-mode tool sets ----------
 
 // Gemini functionDeclarations (Type.* schemas), offered in AUTO mode.
@@ -272,6 +312,7 @@ export type GetCreatorDataArgs = { handle: string };
 // render tools whose calls are terminal and surfaced as cards.
 export const AUTO_TOOLS_GEMINI = [
   GET_CREATOR_DATA_TOOL,
+  ANALYZE_CREATOR_POSTS_TOOL,
   SHOW_BOOST_VARIATIONS_TOOL,
   DRAFT_DOCUMENT_TOOL,
   SHOW_SOCIAL_POSTS_TOOL,
@@ -279,7 +320,10 @@ export const AUTO_TOOLS_GEMINI = [
 ];
 
 // Tool names the route executes server-side (and loops), rather than rendering.
-export const DATA_TOOL_NAMES = ["getCreatorData"] as const;
+export const DATA_TOOL_NAMES = [
+  "getCreatorData",
+  "analyzeCreatorPosts",
+] as const;
 
 // OpenRouter tools (OpenAI JSON schema), offered in AUTO mode.
 export const AUTO_TOOLS_OPENROUTER = [

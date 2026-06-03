@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Columns3, Plus, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import ChatRow from "./ChatRow";
+import MentionAutocomplete, { type MentionHit } from "./MentionAutocomplete";
 import { BOOST_STARTERS, type StarterKey } from "@/lib/boost-starters";
 import type { Chat } from "@/lib/types-chat";
 import { filesToAttachments } from "@/lib/chat-files";
@@ -24,18 +25,55 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { cn } from "@/lib/utils";
 
+type Mention = { kind: "post" | "creator" | "list"; id: string; label: string };
+
 export default function NewChatHome({ recent }: { recent: Chat[] }) {
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [recentChats, setRecentChats] = useState(recent);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingMentions, setPendingMentions] = useState<Mention[]>([]);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect @-mention typing (mirrors ChatThread).
+  useEffect(() => {
+    if (!inputRef.current) return;
+    const ta = inputRef.current;
+    const before = message.slice(0, ta.selectionStart);
+    const match = before.match(/@(\w*)$/);
+    setMentionQuery(match ? match[1] : null);
+  }, [message]);
+
+  function insertMention(hit: MentionHit) {
+    if (!inputRef.current) return;
+    const ta = inputRef.current;
+    const cursor = ta.selectionStart;
+    const before = message.slice(0, cursor);
+    const after = message.slice(cursor);
+    const newBefore = before.replace(/@(\w*)$/, `@${hit.label} `);
+    setMessage(newBefore + after);
+    setPendingMentions((m) => [
+      ...m,
+      { kind: hit.kind, id: hit.id, label: hit.label },
+    ]);
+    setMentionQuery(null);
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const pos = newBefore.length;
+        inputRef.current.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  }
 
   async function send(prefill?: string) {
     const text = (prefill ?? message).trim();
-    // Boost starters don't carry files; only the typed composer does.
+    // Boost starters don't carry files or mentions; only the typed composer does.
     const files = prefill ? [] : pendingFiles;
+    const mentions = prefill ? [] : pendingMentions;
     if ((!text && files.length === 0) || sending) return;
     setSending(true);
     const fileNote = files.length
@@ -43,6 +81,7 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
       : "";
     const fullMessage = `${text}${fileNote}`.trim();
     setPendingFiles([]);
+    setPendingMentions([]);
     const attachments = files.length
       ? await filesToAttachments(files)
       : undefined;
@@ -61,7 +100,11 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
       if (!res.ok || !data.chat?.id) {
         throw new Error(data.error || "couldn't create chat");
       }
-      setPendingChat(data.chat.id, { message: fullMessage, attachments });
+      setPendingChat(data.chat.id, {
+        message: fullMessage,
+        attachments,
+        mentions: mentions.length > 0 ? mentions : undefined,
+      });
       router.push(`/chats/${data.chat.id}`);
     } catch (e) {
       toast.error("Couldn't start chat", { description: String(e) });
@@ -93,6 +136,7 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
             What deserves your attention today?
           </h1>
 
+          <div className="relative">
           <PromptInput
             onSubmit={(_message, e) => {
               e.preventDefault();
@@ -100,8 +144,26 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
             }}
             className="rounded-2xl shadow-[0_12px_50px_-32px_rgba(0,0,0,0.5)]"
           >
-            {pendingFiles.length > 0 && (
+            {(pendingFiles.length > 0 || pendingMentions.length > 0) && (
               <PromptInputHeader>
+                {pendingMentions.map((m, i) => (
+                  <Badge
+                    key={`${m.kind}-${m.id}`}
+                    variant="secondary"
+                    className="gap-1 pl-2 pr-1 text-[10px] font-normal"
+                  >
+                    @{m.label}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPendingMentions((p) => p.filter((_, idx) => idx !== i))
+                      }
+                      className="rounded-sm p-0.5 text-muted-foreground hover:bg-background/40 hover:text-foreground"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </Badge>
+                ))}
                 {pendingFiles.map((f, i) => (
                   <Badge
                     key={`file-${i}-${f.name}`}
@@ -125,15 +187,17 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
 
             <PromptInputBody>
               <PromptInputTextarea
+                ref={inputRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  // When the @-mention popup is open, let it handle Enter.
+                  if (e.key === "Enter" && !e.shiftKey && mentionQuery === null) {
                     e.preventDefault();
                     send();
                   }
                 }}
-                placeholder="Ask anything…  (attach images / PDFs with +)"
+                placeholder="Ask anything…  (@ to add context, + for files)"
                 disabled={sending}
               />
             </PromptInputBody>
@@ -153,6 +217,17 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
               />
             </PromptInputFooter>
           </PromptInput>
+
+            <AnimatePresence>
+              {mentionQuery !== null && (
+                <MentionAutocomplete
+                  query={mentionQuery}
+                  onPick={insertMention}
+                  onClose={() => setMentionQuery(null)}
+                />
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Hidden file picker driven by the + button */}
           <input
