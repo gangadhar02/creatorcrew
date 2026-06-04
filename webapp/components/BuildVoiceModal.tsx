@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { clsx } from "clsx";
 import type { Voice } from "@/lib/types";
 
@@ -165,7 +166,12 @@ export default function BuildVoiceModal({
     }
   }
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  // Portal to <body> so the fixed overlay isn't trapped by a transformed
+  // ancestor (e.g. the home checklist Card's `.card-hover` translateY, which
+  // would otherwise anchor this modal to the card and render it glitched).
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
@@ -233,7 +239,8 @@ export default function BuildVoiceModal({
           to refine it as you go.
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
