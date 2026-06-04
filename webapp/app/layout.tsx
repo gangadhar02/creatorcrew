@@ -6,7 +6,6 @@ import { getWorkspaceContext } from "@/lib/workspace";
 import { getSupabase } from "@/lib/supabase";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import AgentationDev from "@/components/AgentationDev";
 
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -136,7 +135,6 @@ export default async function RootLayout({
             <main className="min-h-screen animate-page-in">{children}</main>
           )}
           <Toaster richColors closeButton position="bottom-right" />
-          {process.env.NODE_ENV === "development" && <AgentationDev />}
         </TooltipProvider>
       </body>
     </html>

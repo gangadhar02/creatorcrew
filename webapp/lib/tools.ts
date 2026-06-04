@@ -304,6 +304,35 @@ export type AnalyzeCreatorPostsArgs = {
   include?: ("transcript" | "vision")[];
 };
 
+// ---------- analyzePost (server-executed DATA tool) ----------
+
+export const ANALYZE_POST_TOOL = {
+  name: "analyzePost",
+  description:
+    "Fetch the transcript and/or visual (vision) analysis for ONE specific saved post by its post_id — e.g. an Instagram reel that is on the board. It generates them on demand from the actual media (cookie-free via Apify) when not already stored, and caches the result. Call this when the user asks to analyze, transcribe, fetch the transcript of, or run a visual analysis on a specific post/reel on the board. The board context lists each post's post_id — use that id. After it returns, write your answer grounded in the returned transcript and vision; if it has an error field, say the media couldn't be fetched.",
+  parameters: {
+    type: Type.OBJECT,
+    required: ["post_id"],
+    properties: {
+      post_id: {
+        type: Type.STRING,
+        description:
+          "The creator_post id of the post to analyze (shown next to each POST in the board context).",
+      },
+      include: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING, enum: ["transcript", "vision"] },
+        description: "Which analyses to run. Default both transcript and vision.",
+      },
+    },
+  },
+};
+
+export type AnalyzePostArgs = {
+  post_id: string;
+  include?: ("transcript" | "vision")[];
+};
+
 // ---------- Aggregated auto-mode tool sets ----------
 
 // Gemini functionDeclarations (Type.* schemas), offered in AUTO mode.
@@ -313,6 +342,7 @@ export type AnalyzeCreatorPostsArgs = {
 export const AUTO_TOOLS_GEMINI = [
   GET_CREATOR_DATA_TOOL,
   ANALYZE_CREATOR_POSTS_TOOL,
+  ANALYZE_POST_TOOL,
   SHOW_BOOST_VARIATIONS_TOOL,
   DRAFT_DOCUMENT_TOOL,
   SHOW_SOCIAL_POSTS_TOOL,
@@ -323,6 +353,7 @@ export const AUTO_TOOLS_GEMINI = [
 export const DATA_TOOL_NAMES = [
   "getCreatorData",
   "analyzeCreatorPosts",
+  "analyzePost",
 ] as const;
 
 // Tools that operate on a whole creator's account / library. They are wrong in a

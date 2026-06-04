@@ -250,6 +250,27 @@ html.sidebar-collapsed aside[data-role="app-sidebar"] .sidebar-nav-link > span {
   width: 100%;
 }
 
+/* Hide scrollbars everywhere (app + landing) while keeping scroll functional.
+   Eden-style clean surfaces — no visible scrollbar tracks/thumbs. */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* old Edge/IE */
+}
+*::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important; /* Chrome/Safari/WebKit */
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+/* .subtle-scroll kept as an alias so existing usages stay valid (now hidden). */
+.subtle-scroll {
+  scrollbar-width: none;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

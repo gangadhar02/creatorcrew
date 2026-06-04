@@ -1,12 +1,60 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
-import type { Board } from "@/lib/types-boards";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Board, FileKind } from "@/lib/types-boards";
 import type { ExpandedBoardItem } from "@/app/boards/[id]/page";
 import BoardItemTile from "./BoardItemTile";
-import BoardCanvas from "./board/BoardCanvas";
-import type { TLStoreSnapshot } from "tldraw";
+import BoardCanvasView, { type BoardCreateHandlers } from "./board/BoardCanvasView";
+import SectionTabs from "./board/SectionTabs";
+import PromptDialog from "./canvas/PromptDialog";
+import CreateMenu, { type CreateAction } from "./canvas/CreateMenu";
+import { DocumentOverlayProvider } from "./canvas/DocumentOverlay";
+import BoardSettingsMenu, { type SortMode, type ItemKindFilter } from "./board/BoardSettingsMenu";
+import ShareMenu, { type Visibility } from "./board/ShareMenu";
+import { usePostChat } from "./post-chat";
+import { Plus, MessageSquare, Share2, Zap, Settings2 } from "lucide-react";
+
+const ALL_KINDS: ItemKindFilter[] = ["document", "card", "post", "file"];
+
+function itemName(i: ExpandedBoardItem): string {
+  return (
+    i.document?.title ||
+    i.card?.body_md ||
+    i.creator_post?.title_or_caption ||
+    i.file?.original_name ||
+    ""
+  ).toLowerCase();
+}
+
+function itemModified(i: ExpandedBoardItem): string {
+  return i.document?.updated_at || i.card?.updated_at || i.created_at || "";
+}
+
+function sortItems(list: ExpandedBoardItem[], sort: SortMode): ExpandedBoardItem[] {
+  if (sort === "custom") return list;
+  const arr = [...list];
+  if (sort === "created") arr.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  else if (sort === "modified") arr.sort((a, b) => itemModified(b).localeCompare(itemModified(a)));
+  else if (sort === "name") arr.sort((a, b) => itemName(a).localeCompare(itemName(b)));
+  else if (sort === "type") arr.sort((a, b) => a.kind.localeCompare(b.kind));
+  return arr;
+}
+import { useBoardItems } from "@/lib/board/useBoardItems";
+import { fetchJson } from "@/lib/optimistic/withRollback";
+import { toast } from "sonner";
+
+function readSections(canvasState: unknown): string[] {
+  if (
+    canvasState &&
+    typeof canvasState === "object" &&
+    Array.isArray((canvasState as { sections?: unknown }).sections)
+  ) {
+    return ((canvasState as { sections: unknown[] }).sections).filter(
+      (s): s is string => typeof s === "string"
+    );
+  }
+  return [];
+}
 
 export default function BoardClient({
   board,
@@ -15,83 +63,181 @@ export default function BoardClient({
   board: Board;
   initialItems: ExpandedBoardItem[];
 }) {
-  const router = useRouter();
-  const [items, setItems] = useState<ExpandedBoardItem[]>(initialItems);
+  const {
+    items,
+    addCard,
+    addDocument,
+    addLink,
+    addFile,
+    deleteItem,
+    patchDocumentLocal,
+  } = useBoardItems(board.id, initialItems, board.voice_id);
+
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"grid" | "canvas">(() => {
-    if (typeof window === "undefined") return "canvas";
-    return (
-      (window.localStorage.getItem(`board-view:${board.id}`) as
-        | "grid"
-        | "canvas") || "canvas"
-    );
-  });
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [persistedSections, setPersistedSections] = useState<string[]>(() =>
+    readSections(board.canvas_state)
+  );
+  const [sectionDialog, setSectionDialog] = useState(false);
+  const [headerMenu, setHeaderMenu] = useState<{ x: number; y: number } | null>(null);
+  const [settingsMenu, setSettingsMenu] = useState<{ x: number; y: number } | null>(null);
+  const [shareMenu, setShareMenu] = useState<{ x: number; y: number } | null>(null);
+  const [sort, setSort] = useState<SortMode>("custom");
+  const [enabledKinds, setEnabledKinds] = useState<Set<ItemKindFilter>>(
+    () => new Set(ALL_KINDS)
+  );
+  const [visibility, setVisibility] = useState<Visibility>("private");
+  const chatPanel = usePostChat();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Re-sync the item list when the server re-renders after router.refresh()
-  // (add post/card/document/file). Tile layout lives in the tldraw snapshot,
-  // not here, so replacing the list just adds/removes which tiles exist.
-  useEffect(() => {
-    setItems(initialItems);
-  }, [initialItems]);
-
-  function switchView(v: "grid" | "canvas") {
-    setViewMode(v);
-    try {
-      window.localStorage.setItem(`board-view:${board.id}`, v);
-    } catch {
-      /* ignore */
-    }
-  }
-
-  // Compute available tags
-  const tags = Array.from(
-    new Set(items.map((i) => i.tag).filter((t): t is string => !!t))
+  const runHeaderAction = useCallback(
+    (action: CreateAction) => {
+      if (action === "card") addCard({ tag: activeTag });
+      else if (action === "document") addDocument({ tag: activeTag });
+      else if (action === "section") setSectionDialog(true);
+      else if (action === "link") {
+        const url = window.prompt("Paste an Instagram post or reel URL");
+        if (url && url.trim().startsWith("http")) addLink(url.trim(), { tag: activeTag });
+      }
+    },
+    [addCard, addDocument, addLink, activeTag]
   );
 
-  const visibleItems = activeTag
-    ? items.filter((i) => i.tag === activeTag)
-    : items;
+  // Section list = persisted (incl. empty) ∪ tags present on items.
+  const sections = useMemo(() => {
+    const fromItems = items
+      .map((i) => i.tag)
+      .filter((t): t is string => !!t);
+    return Array.from(new Set([...persistedSections, ...fromItems]));
+  }, [persistedSections, items]);
 
-  // Keyboard shortcuts
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const i of items) if (i.tag) c[i.tag] = (c[i.tag] ?? 0) + 1;
+    return c;
+  }, [items]);
+
+  const visibleItems = useMemo(() => {
+    let list = items.filter((i) => enabledKinds.has(i.kind as ItemKindFilter));
+    if (activeTag) list = list.filter((i) => i.tag === activeTag);
+    return sortItems(list, sort);
+  }, [items, enabledKinds, activeTag, sort]);
+
+  const toggleKind = useCallback((k: ItemKindFilter) => {
+    setEnabledKinds((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      // never allow an empty filter (nothing visible) — re-enable all instead
+      if (next.size === 0) return new Set(ALL_KINDS);
+      return next;
+    });
+  }, []);
+
+  const persistSections = useCallback(
+    async (next: string[]) => {
+      setPersistedSections(next);
+      try {
+        await fetchJson(`/api/boards/${board.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ canvas_state: { sections: next } }),
+        });
+      } catch {
+        toast.error("Couldn't save section");
+      }
+    },
+    [board.id]
+  );
+
+  const addSection = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      if (!sections.includes(trimmed)) {
+        persistSections([...persistedSections, trimmed]);
+      }
+      setActiveTag(trimmed);
+    },
+    [sections, persistedSections, persistSections]
+  );
+
+  // File upload (drag-drop or picker) — optimistic add via the store.
+  const handleFiles = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0) return;
+      setBusy("file");
+      for (const f of Array.from(files)) {
+        const form = new FormData();
+        form.append("file", f);
+        try {
+          const up = await fetchJson<{ file: { id: string; kind: string; original_name: string | null } }>(
+            "/api/files/upload",
+            { method: "POST", body: form }
+          );
+          await addFile(
+            up.file.id,
+            {
+              id: up.file.id,
+              kind: (up.file.kind as FileKind) || "file",
+              storage_bucket: "",
+              storage_path: "",
+              original_name: up.file.original_name,
+              size_bytes: null,
+              mime_type: null,
+              created_at: new Date().toISOString(),
+            },
+            { tag: activeTag }
+          );
+        } catch (e) {
+          toast.error("Upload failed", {
+            description: e instanceof Error ? e.message : undefined,
+          });
+        }
+      }
+      setBusy(null);
+    },
+    [addFile, activeTag]
+  );
+
+  // Keyboard shortcuts: C card, D document, ⇧L link, S section, ⌘V paste url.
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      // Avoid hijacking when user is typing in inputs/textareas/contentEditable
-      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
-      const editable =
+    function isEditable(target: EventTarget | null) {
+      const el = target as HTMLElement | null;
+      const tag = el?.tagName?.toLowerCase();
+      return (
         tag === "input" ||
         tag === "textarea" ||
-        (e.target as HTMLElement | null)?.isContentEditable;
-      if (editable) return;
-
-      if ((e.metaKey || e.ctrlKey) && e.key === "v") {
-        // ⌘V is handled by the global paste listener below
-        return;
-      }
+        !!el?.isContentEditable ||
+        !!el?.closest?.("[role='dialog']")
+      );
+    }
+    function onKey(e: KeyboardEvent) {
+      if (isEditable(e.target)) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "v") return;
       if (e.key === "c" || e.key === "C") {
         e.preventDefault();
-        addCard();
-      } else if (e.key === "d" || e.key === "D") {
+        addCard({ tag: activeTag });
+      } else if (!e.shiftKey && (e.key === "d" || e.key === "D")) {
         e.preventDefault();
-        addDocument();
+        addDocument({ tag: activeTag });
+      } else if (e.shiftKey && (e.key === "l" || e.key === "L")) {
+        e.preventDefault();
+        setSectionDialog(false);
+        // Open link via the canvas dialog isn't reachable from here; quick prompt:
+        const url = window.prompt("Paste an Instagram post or reel URL");
+        if (url && url.trim().startsWith("http")) addLink(url.trim(), { tag: activeTag });
+      } else if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        setSectionDialog(true);
       }
     }
     function onPaste(e: ClipboardEvent) {
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName?.toLowerCase();
-      const editable =
-        tag === "input" ||
-        tag === "textarea" ||
-        target?.isContentEditable;
-      if (editable) return;
-      // Pastes inside the tldraw canvas are handled by the canvas itself
-      // (BoardCanvas.onPasteUrl) — don't double-add here.
-      if (target?.closest?.(".tl-container")) return;
+      if (isEditable(e.target)) return;
       const text = e.clipboardData?.getData("text") || "";
       if (text.startsWith("http")) {
         e.preventDefault();
-        addPostByUrl(text.trim());
+        addLink(text.trim(), { tag: activeTag });
       }
     }
     window.addEventListener("keydown", onKey);
@@ -100,349 +246,187 @@ export default function BoardClient({
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("paste", onPaste);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [addCard, addDocument, addLink, activeTag]);
 
-  async function addCard() {
-    setBusy("card");
-    try {
-      const res = await fetch(`/api/boards/${board.id}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "card", body_md: "", tag: activeTag }),
-      });
-      const data = await res.json();
-      if (res.ok) router.refresh();
-      else alert(`Failed: ${data.error}`);
-    } finally {
-      setBusy(null);
-    }
-  }
+  const handlers: BoardCreateHandlers = {
+    onCreateCard: (o) => addCard(o),
+    onCreateDocument: (o) => addDocument(o),
+    onCreateLink: (url, o) => addLink(url, o),
+    onAddSection: () => setSectionDialog(true),
+    activeTag,
+  };
 
-  async function addDocument() {
-    setBusy("document");
-    try {
-      const res = await fetch(`/api/boards/${board.id}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "document",
-          title: "Untitled",
-          body_md: "",
-          voice_id: board.voice_id,
-          tag: activeTag,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) router.refresh();
-      else alert(`Failed: ${data.error}`);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function addPostByUrl(url: string) {
-    setBusy("post");
-    try {
-      const res = await fetch(`/api/boards/${board.id}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "post", url, tag: activeTag }),
-      });
-      const data = await res.json();
-      if (res.ok) router.refresh();
-      else alert(`Couldn't add: ${data.error}`);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return;
-    setBusy("file");
-    for (const f of Array.from(files)) {
-      const form = new FormData();
-      form.append("file", f);
-      const upRes = await fetch("/api/files/upload", {
-        method: "POST",
-        body: form,
-      });
-      const upData = await upRes.json();
-      if (!upRes.ok) {
-        alert(`Upload failed: ${upData.error}`);
-        continue;
-      }
-      await fetch(`/api/boards/${board.id}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "file",
-          file_id: upData.file.id,
-          tag: activeTag,
-        }),
-      });
-    }
-    setBusy(null);
-    router.refresh();
-  }
-
-  async function deleteItem(itemId: string) {
-    if (!confirm("Remove this item from the board?")) return;
-    setItems((prev) => prev.filter((i) => i.id !== itemId));
-    await fetch(`/api/board-items/${itemId}`, { method: "DELETE" });
-    router.refresh();
-  }
-
-  // Drag-drop file uploads on the whole board area
+  // Whole-board drag-drop file upload.
   function onDragOver(e: React.DragEvent) {
     e.preventDefault();
   }
   function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    handleFiles(e.dataTransfer.files);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      e.preventDefault();
+      handleFiles(e.dataTransfer.files);
+    }
   }
 
+  const chatActive = chatPanel.isOpen;
   return (
-    <div
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      className="space-y-4"
-    >
+   <DocumentOverlayProvider onLocalUpdate={patchDocumentLocal}>
+    <div onDragOver={onDragOver} onDrop={onDrop} className="space-y-4">
       {/* Header */}
-      <header className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="h-9 w-9 shrink-0 rounded grid place-items-center text-base bg-[var(--border)]">
-            {board.icon || "📋"}
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold truncate">{board.name}</h1>
-            {board.description && (
-              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
-                {board.description}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="shrink-0 flex items-center gap-2 text-xs">
+      <header className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="truncate text-2xl font-semibold tracking-tight">
+            {board.name}
+          </h1>
           <button
-            className="rounded-md border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--border)]/30 opacity-50 cursor-not-allowed"
-            disabled
-            title="Phase 10"
+            onClick={(e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setHeaderMenu({ x: r.left, y: r.bottom + 6 });
+            }}
+            title="Add to board"
+            className="grid h-7 w-7 place-items-center rounded-md border border-border text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            Chat
-          </button>
-          <button
-            className="rounded-md border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--border)]/30 opacity-50 cursor-not-allowed"
-            disabled
-            title="Coming soon"
-          >
-            Share
+            <Plus className="h-4 w-4" />
           </button>
         </div>
-      </header>
-
-      {/* Sub-tag tabs */}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex shrink-0 items-center gap-1 text-sm text-muted-foreground">
           <button
-            onClick={() => setActiveTag(null)}
+            onClick={() =>
+              chatActive ? chatPanel.close() : chatPanel.openBoard(board.id, board.name)
+            }
             className={
-              activeTag === null
-                ? "rounded-full px-3 py-1 text-xs font-medium bg-[var(--primary)] text-[var(--primary-foreground)]"
-                : "rounded-full px-3 py-1 text-xs border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 hover:bg-accent hover:text-foreground " +
+              (chatActive ? "bg-accent text-foreground" : "")
             }
           >
-            All ({items.length})
-          </button>
-          {tags.map((t) => {
-            const count = items.filter((i) => i.tag === t).length;
-            return (
-              <button
-                key={t}
-                onClick={() => setActiveTag(t)}
-                className={
-                  activeTag === t
-                    ? "rounded-full px-3 py-1 text-xs font-medium bg-[var(--primary)] text-[var(--primary-foreground)]"
-                    : "rounded-full px-3 py-1 text-xs border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                }
-              >
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1 align-middle" />
-                {t} ({count})
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Add panel */}
-      {items.length === 0 ? (
-        <EmptyAddPanel
-          onAddCard={addCard}
-          onAddDocument={addDocument}
-          onFiles={handleFiles}
-          busy={busy}
-        />
-      ) : (
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <button
-            onClick={addCard}
-            disabled={busy !== null}
-            className="rounded-md border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--border)]/30 disabled:opacity-50"
-          >
-            + Card <kbd className="ml-1 opacity-60">C</kbd>
+            <MessageSquare className="h-4 w-4" /> Chat
           </button>
           <button
-            onClick={addDocument}
-            disabled={busy !== null}
-            className="rounded-md border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--border)]/30 disabled:opacity-50"
+            onClick={(e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setShareMenu({ x: r.right - 300, y: r.bottom + 6 });
+            }}
+            className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 hover:bg-accent hover:text-foreground"
           >
-            + Document <kbd className="ml-1 opacity-60">D</kbd>
+            <Share2 className="h-4 w-4" /> Share
           </button>
-          <label className="rounded-md border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--border)]/30 cursor-pointer">
-            + File
-            <input
-              ref={inputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-          </label>
-          <span className="text-[var(--muted-foreground)]">
-            Paste a URL (⌘V) · Drag-drop files anywhere
-          </span>
-        </div>
-      )}
-
-      {/* View mode + Items render */}
-      {visibleItems.length > 0 && (
-        <>
-          <div className="flex items-center gap-1 text-[10px]">
-            <button
-              onClick={() => switchView("canvas")}
-              className={
-                viewMode === "canvas"
-                  ? "rounded-md bg-primary px-2 py-1 text-primary-foreground"
-                  : "rounded-md border border-border px-2 py-1 text-muted-foreground hover:text-foreground"
-              }
-            >
-              Canvas
-            </button>
-            <button
-              onClick={() => switchView("grid")}
-              className={
-                viewMode === "grid"
-                  ? "rounded-md bg-primary px-2 py-1 text-primary-foreground"
-                  : "rounded-md border border-border px-2 py-1 text-muted-foreground hover:text-foreground"
-              }
-            >
-              Grid
-            </button>
-          </div>
-          {viewMode === "canvas" ? (
-            <BoardCanvas
-              boardId={board.id}
-              items={visibleItems}
-              initialSnapshot={
-                (board.canvas_state as TLStoreSnapshot | null) ?? null
-              }
-              onDelete={deleteItem}
-            />
-          ) : (
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleItems.map((item) => (
-                <BoardItemTile key={item.id} item={item} onDelete={deleteItem} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function EmptyAddPanel({
-  onAddCard,
-  onAddDocument,
-  onFiles,
-  busy,
-}: {
-  onAddCard: () => void;
-  onAddDocument: () => void;
-  onFiles: (f: FileList | null) => void;
-  busy: string | null;
-}) {
-  return (
-    <div className="mx-auto max-w-md rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="font-medium text-sm">Add To This Board</div>
-      </div>
-      <div className="space-y-1.5 text-sm">
-        <ShortcutRow label="Paste a link" keys={["⌘", "V"]} />
-        <ShortcutRow label="Start a document" keys={["D"]} onClick={onAddDocument} />
-        <ShortcutRow label="Jot quick ideas or drafts" keys={["C"]} onClick={onAddCard} />
-        <label className="flex items-center justify-between rounded-md p-2 hover:bg-[var(--border)]/30 cursor-pointer">
-          <span>Drop images, PDFs, or files</span>
-          <span className="text-[10px] text-[var(--muted-foreground)] font-mono">DRAG</span>
+          <button
+            title="Boost"
+            className="grid h-8 w-8 place-items-center rounded-md hover:bg-accent hover:text-foreground"
+          >
+            <Zap className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setSettingsMenu({ x: r.right - 256, y: r.bottom + 6 });
+            }}
+            title="Board settings"
+            className="grid h-8 w-8 place-items-center rounded-md hover:bg-accent hover:text-foreground"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
           <input
+            ref={fileInputRef}
             type="file"
             multiple
             className="hidden"
-            onChange={(e) => onFiles(e.target.files)}
+            onChange={(e) => handleFiles(e.target.files)}
           />
-        </label>
-        <ShortcutRow
-          label="Save top performing content"
-          keys={["DISCOVER"]}
-          href="/discover"
-        />
-        <ShortcutRow label="Save an AI chat response" keys={["CHAT"]} />
-      </div>
-      {busy && (
-        <div className="mt-3 text-xs text-[var(--muted-foreground)]">Adding {busy}…</div>
-      )}
-    </div>
-  );
-}
+        </div>
+      </header>
 
-function ShortcutRow({
-  label,
-  keys,
-  onClick,
-  href,
-}: {
-  label: string;
-  keys: string[];
-  onClick?: () => void;
-  href?: string;
-}) {
-  const content = (
-    <>
-      <span>{label}</span>
-      <span className="flex items-center gap-0.5">
-        {keys.map((k) => (
-          <kbd
-            key={k}
-            className="rounded border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--muted-foreground)]"
-          >
-            {k}
-          </kbd>
-        ))}
-      </span>
-    </>
-  );
-  const className =
-    "flex items-center justify-between rounded-md p-2 hover:bg-[var(--border)]/30 cursor-pointer";
-  if (href) {
-    return (
-      <a href={href} className={className}>
-        {content}
-      </a>
-    );
-  }
-  return (
-    <button onClick={onClick} className={`w-full text-left ${className}`}>
-      {content}
-    </button>
+      {/* Sections */}
+      <SectionTabs
+        sections={sections}
+        counts={counts}
+        total={items.length}
+        activeTag={activeTag}
+        onSelect={setActiveTag}
+        onAddSection={() => setSectionDialog(true)}
+      />
+
+      <CreateMenu
+        open={!!headerMenu}
+        x={headerMenu?.x ?? 0}
+        y={headerMenu?.y ?? 0}
+        onClose={() => setHeaderMenu(null)}
+        onPick={runHeaderAction}
+      />
+
+      <BoardSettingsMenu
+        open={!!settingsMenu}
+        x={settingsMenu?.x ?? 0}
+        y={settingsMenu?.y ?? 0}
+        sort={sort}
+        onSort={setSort}
+        enabled={enabledKinds}
+        onToggleKind={toggleKind}
+        onDisplayAll={() => setEnabledKinds(new Set(ALL_KINDS))}
+        onVersionHistory={() => toast.info("Version history is coming soon")}
+        onSaveTemplate={() => toast.info("Save as template is coming soon")}
+        onClose={() => setSettingsMenu(null)}
+      />
+
+      <ShareMenu
+        open={!!shareMenu}
+        x={shareMenu?.x ?? 0}
+        y={shareMenu?.y ?? 0}
+        visibility={visibility}
+        onChange={(v) => {
+          setVisibility(v);
+          toast.success(v === "public" ? "Board is now public (read-only)" : "Board is private");
+        }}
+        onClose={() => setShareMenu(null)}
+      />
+
+      {/* Canvas / empty state */}
+      {items.length === 0 ? (
+        <div className="mx-auto max-w-md rounded-lg border border-border bg-card p-6 text-center text-sm">
+          <p className="font-medium">This board is empty</p>
+          <p className="mt-1 text-muted-foreground">
+            Right-click the canvas, paste a link (⌘V), or use the buttons above to
+            add a card, document, or file.
+          </p>
+          <div className="mt-4 flex justify-center gap-2 text-xs">
+            <button
+              onClick={() => addCard({ tag: activeTag })}
+              className="rounded-md border border-border px-3 py-1.5 hover:bg-border/30"
+            >
+              + Card
+            </button>
+            <button
+              onClick={() => addDocument({ tag: activeTag })}
+              className="rounded-md border border-border px-3 py-1.5 hover:bg-border/30"
+            >
+              + Document
+            </button>
+          </div>
+        </div>
+      ) : visibleItems.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          Nothing in “{activeTag}” yet. Create an item here, or drag one in.
+        </div>
+      ) : (
+        <BoardCanvasView
+          key={sort}
+          boardId={board.id}
+          items={visibleItems}
+          onDelete={deleteItem}
+          handlers={handlers}
+          reorderable={sort === "custom"}
+        />
+      )}
+
+      <PromptDialog
+        open={sectionDialog}
+        title="Add section"
+        description="Group cards under a named section. New items land in the active section."
+        placeholder="e.g. Hooks, Scripts, References"
+        submitLabel="Add section"
+        onSubmit={addSection}
+        onClose={() => setSectionDialog(false)}
+      />
+    </div>
+   </DocumentOverlayProvider>
   );
 }

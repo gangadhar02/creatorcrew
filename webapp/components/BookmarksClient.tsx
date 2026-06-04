@@ -4,8 +4,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, LayoutGrid, Grid3x3 } from "lucide-react";
 import type { BookmarkItem } from "@/lib/types-bookmarks";
-import BookmarksTldrawCanvas from "./bookmarks/BookmarksTldrawCanvas";
-import type { TLStoreSnapshot } from "tldraw";
+import BookmarkCanvasView from "./bookmarks/BookmarkCanvasView";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -23,22 +22,13 @@ const ALL_TAGS_VALUE = "__all_bookmark_tags__";
 export default function BookmarksClient({
   initialItems,
   schemaReady,
-  initialCanvasState,
 }: {
   initialItems: BookmarkItem[];
   schemaReady: boolean;
-  initialCanvasState?: unknown;
 }) {
   const [items, setItems] = useState<BookmarkItem[]>(initialItems);
   const [syncing, setSyncing] = useState(false);
   const [activeTag, setActiveTag] = useState<string | null>(null);
-  // Bump to force the canvas to remount and re-run its initial fitView.
-  // Used after "Reset to grid" so the camera snaps to the new layout.
-  const [canvasKey, setCanvasKey] = useState(0);
-  // tldraw whiteboard snapshot for this workspace; null re-seeds from the grid.
-  const [canvasState, setCanvasState] = useState<unknown>(
-    initialCanvasState ?? null
-  );
 
   const tags = Array.from(
     new Set(
@@ -169,14 +159,15 @@ export default function BookmarksClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Reset failed");
 
-      // Clear the saved tldraw canvas so it re-seeds from the fresh grid.
-      await fetch("/api/bookmarks/canvas", { method: "DELETE" }).catch(() => {});
-      setCanvasState(null);
-
       const listRes = await fetch("/api/bookmarks");
       const listData = await listRes.json();
       setItems(listData.items || []);
-      setCanvasKey((k) => k + 1);
+      // Reset stored camera so the view snaps back to the fresh grid.
+      try {
+        window.localStorage.removeItem("canvas-cam:bookmarks");
+      } catch {
+        /* ignore */
+      }
       toast.success(`Reset ${data.updated} bookmarks to 5-column grid`);
     } catch (e) {
       toast.error(String(e));
@@ -276,10 +267,8 @@ export default function BookmarksClient({
           </p>
         </div>
       ) : (
-        <BookmarksTldrawCanvas
-          key={canvasKey}
+        <BookmarkCanvasView
           items={visible}
-          initialSnapshot={(canvasState as TLStoreSnapshot | null) ?? null}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
           onPasteUrl={handlePasteUrl}

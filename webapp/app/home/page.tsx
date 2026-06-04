@@ -4,18 +4,21 @@ import {
   Check,
   Circle,
   ArrowRight,
-  Play,
-  Calendar,
-  Megaphone,
-  Video,
+  MessageSquare,
+  LayoutGrid,
 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
 import { getWorkspaceContext } from "@/lib/workspace";
+import {
+  logWorkspaceVisit,
+  getWorkspaceActivity,
+} from "@/lib/activity";
 import { cn } from "@/lib/utils";
 import type { SyncRun } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import ChecklistBuildVoiceButton from "@/components/ChecklistBuildVoiceButton";
 import HomeFollowingFeed from "@/components/HomeFollowingFeed";
+import StreakTracker from "@/components/StreakTracker";
 
 export const dynamic = "force-dynamic";
 
@@ -76,32 +79,24 @@ const CHECKLIST: ChecklistItem[] = [
   },
 ];
 
-const STARTER_TEMPLATES: {
-  name: string;
-  description: string;
-  Icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  {
-    name: "Viral Reels & Shorts",
-    description: "Write viral reels and shorts in your voice by chatting with this board.",
-    Icon: Play,
-  },
-  {
-    name: "Viral Tweets",
-    description: "Write viral tweets in your voice by chatting with this board.",
-    Icon: Megaphone,
-  },
-  {
-    name: "Viral YouTube Videos",
-    description: "Write viral YouTube scripts in your voice by chatting with this board.",
-    Icon: Video,
-  },
-  {
-    name: "Weekly Content Workflow",
-    description: "Plan, research, draft, and ship a week of content from one board.",
-    Icon: Calendar,
-  },
-];
+/** Relative time like "5h ago", "Yesterday", "3d ago" for recent lists. */
+function fmtRelative(iso: string | null): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  const diffMs = Date.now() - then;
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "–";
@@ -150,6 +145,9 @@ export default async function Dashboard() {
   // Mostly rotates daily so the home headline feels alive without a refresh churn.
   const headline = pickHeadline(utcDayBucket() + ws.onboardingCompleted);
   const pct = (ws.onboardingCompleted / ws.onboardingTotal) * 100;
+  // Once every onboarding task is done, drop the "Getting started" checklist
+  // from the home page (like Eden) so it stops nagging completed users.
+  const showOnboarding = ws.onboardingCompleted < ws.onboardingTotal;
 
   // My-lists section data
   const listsRes = ws.workspaceId
@@ -163,6 +161,41 @@ export default async function Dashboard() {
   const lists =
     (listsRes.data || []) as { id: string; name: string; color: string }[];
 
+  // Recent boards + chats + the activity heatmap. Logging the visit first means
+  // today shows up in the streak immediately.
+  await logWorkspaceVisit(ws.workspaceId);
+  const [boardsRes, chatsRes, activity] = await Promise.all([
+    ws.workspaceId
+      ? sb
+          .from("boards")
+          .select("id, name, icon, updated_at")
+          .eq("workspace_id", ws.workspaceId)
+          .eq("kind", "board")
+          .order("updated_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [] }),
+    ws.workspaceId
+      ? sb
+          .from("chats")
+          .select("id, title, updated_at")
+          .eq("workspace_id", ws.workspaceId)
+          .order("updated_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [] }),
+    getWorkspaceActivity(ws.workspaceId),
+  ]);
+  const recentBoards = (boardsRes.data || []) as {
+    id: string;
+    name: string;
+    icon: string | null;
+    updated_at: string;
+  }[];
+  const recentChats = (chatsRes.data || []) as {
+    id: string;
+    title: string;
+    updated_at: string;
+  }[];
+
   return (
     <div className="space-y-10">
       <header className="flex items-center justify-center pt-4">
@@ -172,8 +205,8 @@ export default async function Dashboard() {
         </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        {/* Getting Started checklist */}
+      {/* Getting Started checklist (hidden once all tasks are complete) */}
+      {showOnboarding && (
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-medium">Getting started</h2>
@@ -252,37 +285,85 @@ export default async function Dashboard() {
             })}
           </div>
         </section>
+      )}
 
-        {/* Starter templates */}
+      {/* Recent items (boards) + Recent chats */}
+      <div className="grid gap-6 md:grid-cols-2">
         <section>
-          <div className="mb-3">
-            <h2 className="text-sm font-medium">Starter templates</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-medium">Recent items</h2>
+            <Link
+              href="/boards"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              All boards →
+            </Link>
           </div>
-          <div className="space-y-2">
-            {STARTER_TEMPLATES.map((t) => {
-              const Icon = t.Icon;
-              return (
+          {recentBoards.length === 0 ? (
+            <p className="rounded-lg border border-dashed bg-card/50 px-3 py-4 text-xs text-muted-foreground">
+              No boards yet. Create one to collect ideas and content.
+            </p>
+          ) : (
+            <div className="space-y-0.5">
+              {recentBoards.map((b) => (
                 <Link
-                  href="/boards"
-                  key={t.name}
-                  className="flex items-start gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-primary/40"
+                  key={b.id}
+                  href={`/boards/${b.id}`}
+                  className="group flex items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-accent/60"
                 >
-                  <div className="h-7 w-7 shrink-0 rounded bg-muted grid place-items-center">
-                    <Icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">{t.name}</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                      {t.description}
-                    </div>
-                  </div>
-                  <ArrowRight className="shrink-0 h-3.5 w-3.5 mt-1 text-muted-foreground" />
+                  <LayoutGrid className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-sm">
+                    {b.name}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {fmtRelative(b.updated_at)}
+                  </span>
                 </Link>
-              );
-            })}
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-medium">Recent chats</h2>
+            <Link
+              href="/chat"
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Open chat →
+            </Link>
           </div>
+          {recentChats.length === 0 ? (
+            <p className="rounded-lg border border-dashed bg-card/50 px-3 py-4 text-xs text-muted-foreground">
+              No chats yet. Start one to draft, research, or reverse-engineer.
+            </p>
+          ) : (
+            <div className="space-y-0.5">
+              {recentChats.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/chats/${c.id}`}
+                  className="group flex items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-accent/60"
+                >
+                  <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-sm">
+                    {c.title || "Untitled chat"}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {fmtRelative(c.updated_at)}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
       </div>
+
+      <StreakTracker
+        activeDays={activity.activeDays}
+        streak={activity.streak}
+      />
 
       <HomeFollowingFeed lists={lists} />
 

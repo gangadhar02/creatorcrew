@@ -71,4 +71,4 @@ Python (repo root):
 - Python: `config.json` (gitignored; IG cookies, Gemini key) + root `.env` (Supabase).
 - Webapp: `webapp/.env.local` (gitignored). Key vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `IG_FETCH_MODE`, `APIFY_API_TOKEN`, `IG_SCRAPE_*` (cookie fallback), `SYNC_DISPATCH_TOKEN` / `ANALYZER_DISPATCH_TOKEN`, optional `OPENROUTER_API_KEY`. Prod also: `NEXT_PUBLIC_ROOT_DOMAIN` (=`creatorcrew.app`), `DODO_PAYMENTS_WEBHOOK_KEY`, `GITHUB_REPO_NAME`.
 - Production secrets live in **Vercel** (webapp) and **GitHub Actions repo secrets** (the workflows). Adding a backend that runs in CI means setting the secret in *both* the Actions secrets and Vercel.
-- **Dev tooling:** `agentation` (dev-only annotation widget, `components/AgentationDev.tsx` + MCP in `.mcp.json`) renders only in development. `.agents/`, `.claude/skills/`, `skills-lock.json` are local harness artifacts (gitignored).
+- **Dev tooling:** `.agents/`, `.claude/skills/`, `skills-lock.json` are local harness artifacts (gitignored). (The `agentation` dev annotation widget + its MCP were removed.)

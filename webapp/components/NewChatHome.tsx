@@ -271,6 +271,13 @@ export default function NewChatHome({ recent }: { recent: Chat[] }) {
                   onDeleted={(deletedId) =>
                     setRecentChats((prev) => prev.filter((x) => x.id !== deletedId))
                   }
+                  onRenamed={(renamedId, t) =>
+                    setRecentChats((prev) =>
+                      prev.map((x) =>
+                        x.id === renamedId ? { ...x, title: t } : x
+                      )
+                    )
+                  }
                 />
                 <Link
                   href={`/workspace?panes=chat%3A${c.id}&active=0`}

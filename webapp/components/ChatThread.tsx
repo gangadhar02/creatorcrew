@@ -680,6 +680,13 @@ function ChatTitlePicker({
                   onDeleted={(deletedId) =>
                     setChats((prev) => prev.filter((x) => x.id !== deletedId))
                   }
+                  onRenamed={(renamedId, t) =>
+                    setChats((prev) =>
+                      prev.map((x) =>
+                        x.id === renamedId ? { ...x, title: t } : x
+                      )
+                    )
+                  }
                 />
               ))}
             </div>

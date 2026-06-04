@@ -32,6 +32,7 @@ import { extractToolCalls, stripToolFences } from "@/lib/tool-text";
 import {
   getCreatorDataForChat,
   analyzeCreatorPostsForChat,
+  analyzeSinglePostForChat,
 } from "@/lib/creator-data";
 import type { Chat } from "@/lib/types-chat";
 
@@ -508,6 +509,25 @@ export async function POST(request: NextRequest) {
                         ev({ type: "token", text: `_${msg}_\n\n` })
                       )
                   );
+                } catch (err) {
+                  result = { error: String(err) };
+                }
+              } else if (c.name === "analyzePost") {
+                const postId = (args.post_id as string) || "";
+                const include = Array.isArray(args.include)
+                  ? (args.include as string[])
+                  : ["transcript", "vision"];
+                controller.enqueue(
+                  ev({
+                    type: "token",
+                    text: `_Fetching the reel's media and analyzing (this can take a minute)…_\n\n`,
+                  })
+                );
+                try {
+                  result = await analyzeSinglePostForChat(postId, {
+                    transcript: include.includes("transcript"),
+                    vision: include.includes("vision"),
+                  });
                 } catch (err) {
                   result = { error: String(err) };
                 }

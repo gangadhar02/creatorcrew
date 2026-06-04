@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import CommandPalette from "./CommandPalette";
 import ChatRow from "./ChatRow";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
+import { usePostChat } from "./post-chat";
 import {
   isSidebarCollapsed,
   toggleSidebarCollapsed,
@@ -77,6 +78,7 @@ export default function Sidebar({
   recentChats,
 }: SidebarProps) {
   const pathname = usePathname();
+  const chatPanel = usePostChat();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -172,7 +174,7 @@ export default function Sidebar({
     <>
       <aside
         data-role="app-sidebar"
-        className="sticky top-0 z-30 flex h-svh shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r bg-sidebar text-sidebar-foreground"
+        className="sticky top-2 z-30 my-2 ml-2 flex h-[calc(100svh-1rem)] shrink-0 flex-col overflow-x-hidden overflow-y-auto rounded-2xl border border-border/70 bg-sidebar text-sidebar-foreground shadow-sm"
       >
         {/* Find or create ⌘K */}
         <div className={cn("sidebar-block pt-4 pb-2", collapsed ? "" : "px-3")}>
@@ -218,8 +220,11 @@ export default function Sidebar({
         <nav className={cn("sidebar-block space-y-0.5 pb-2", collapsed ? "" : "px-3")}>
           {TOP_NAV.map((item) => {
             const Icon = item.icon;
-            const active =
-              item.href === "/home"
+            // The Chat item opens the global chat side panel instead of routing.
+            const isChat = item.href === "/chat";
+            const active = isChat
+              ? chatPanel.isOpen
+              : item.href === "/home"
                 ? pathname === "/home"
                 : pathname.startsWith(item.href);
             const showBadge =
@@ -229,6 +234,7 @@ export default function Sidebar({
               <NavRow
                 key={item.href}
                 href={item.href}
+                onClick={isChat ? () => chatPanel.toggleFreeform() : undefined}
                 active={active}
                 collapsed={collapsed}
                 icon={<Icon className="h-4 w-4 shrink-0" />}
@@ -306,6 +312,13 @@ export default function Sidebar({
                     showCheck={false}
                     onDeleted={(deletedId) =>
                       setTodayChats((prev) => prev.filter((x) => x.id !== deletedId))
+                    }
+                    onRenamed={(renamedId, t) =>
+                      setTodayChats((prev) =>
+                        prev.map((x) =>
+                          x.id === renamedId ? { ...x, title: t } : x
+                        )
+                      )
                     }
                   />
                 )
@@ -451,6 +464,7 @@ export default function Sidebar({
 
 function NavRow({
   href,
+  onClick,
   active,
   collapsed,
   icon,
@@ -460,6 +474,7 @@ function NavRow({
   muted,
 }: {
   href: string;
+  onClick?: () => void;
   active: boolean;
   collapsed: boolean;
   icon?: React.ReactNode;
@@ -468,6 +483,43 @@ function NavRow({
   badgeDot?: boolean;
   muted?: boolean;
 }) {
+  const rowClass = cn(
+    "sidebar-nav-link relative flex w-full items-center rounded-md text-sm transition-colors",
+    collapsed ? "py-0" : "justify-between px-3 py-1.5",
+    active
+      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+      : muted
+        ? "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+        : "text-sidebar-foreground hover:bg-sidebar-accent/60"
+  );
+  const inner = (
+    <>
+      <span
+        className={cn(
+          "flex min-w-0 items-center",
+          collapsed ? "justify-center" : "gap-2"
+        )}
+      >
+        {icon && (
+          <span
+            className={cn(
+              "relative flex shrink-0 items-center justify-center",
+              active ? "text-foreground" : "text-muted-foreground"
+            )}
+          >
+            {icon}
+            {collapsed && badgeDot && (
+              <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-sidebar" />
+            )}
+          </span>
+        )}
+        {!collapsed && (
+          <span className="sidebar-label truncate whitespace-nowrap">{label}</span>
+        )}
+      </span>
+      {!collapsed && badge}
+    </>
+  );
   const link = (
     <div className={cn(collapsed && "flex w-full justify-center")}>
       <motion.div
@@ -475,43 +527,15 @@ function NavRow({
         whileTap={{ scale: 0.98 }}
         transition={{ type: "spring", stiffness: 500, damping: 30 }}
       >
-        <Link
-          href={href}
-          className={cn(
-            "sidebar-nav-link relative flex items-center rounded-md text-sm transition-colors",
-            collapsed ? "py-0" : "justify-between px-3 py-1.5",
-            active
-              ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-              : muted
-                ? "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent/60"
-          )}
-        >
-          <span
-            className={cn(
-              "flex min-w-0 items-center",
-              collapsed ? "justify-center" : "gap-2"
-            )}
-          >
-            {icon && (
-              <span
-                className={cn(
-                  "relative flex shrink-0 items-center justify-center",
-                  active ? "text-foreground" : "text-muted-foreground"
-                )}
-              >
-                {icon}
-                {collapsed && badgeDot && (
-                  <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-sidebar" />
-                )}
-              </span>
-            )}
-            {!collapsed && (
-              <span className="sidebar-label truncate whitespace-nowrap">{label}</span>
-            )}
-          </span>
-          {!collapsed && badge}
-        </Link>
+        {onClick ? (
+          <button type="button" onClick={onClick} className={cn(rowClass, "text-left")}>
+            {inner}
+          </button>
+        ) : (
+          <Link href={href} className={rowClass}>
+            {inner}
+          </Link>
+        )}
       </motion.div>
     </div>
   );

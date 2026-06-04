@@ -148,7 +148,7 @@ ${p.transcript ? `\n## Transcript\n${(p.transcript as string).slice(0, 4000)}` :
       .from("board_items")
       .select(
         `*,
-         creator_post:creator_posts(url, title_or_caption, vision_analysis_md),
+         creator_post:creator_posts(id, url, media_type, title_or_caption, transcript, vision_analysis_md, creator:creators(handle, platform)),
          card:cards(body_md),
          document:documents(title, body_md),
          file:files(original_name, kind)`
@@ -158,12 +158,24 @@ ${p.transcript ? `\n## Transcript\n${(p.transcript as string).slice(0, 4000)}` :
     const b = board as { name: string; description: string | null };
     lines.push(`# Context: board "${b.name}"`);
     if (b.description) lines.push(b.description);
+    lines.push(
+      `\nThis is the user's board. To get a specific post/reel's transcript or visual analysis, call the analyzePost tool with that post's post_id (listed below). You already have each post's post_id and URL — do NOT ask the user for the creator's handle or the link.`
+    );
     lines.push(`\n## Items on the board:`);
     for (const item of (items || []) as Array<Record<string, unknown>>) {
       const kind = item.kind as string;
       if (kind === "post" && item.creator_post) {
         const cp = item.creator_post as Record<string, unknown>;
-        lines.push(`- POST: ${(cp.title_or_caption as string)?.slice(0, 200) || cp.url}`);
+        const creator = cp.creator as { handle?: string; platform?: string } | null;
+        const caption =
+          (cp.title_or_caption as string)?.slice(0, 200) || "(no caption)";
+        const hasT = !!cp.transcript;
+        const hasV = !!cp.vision_analysis_md;
+        lines.push(
+          `- POST [post_id: ${cp.id}] by @${creator?.handle || "?"} (${creator?.platform || "?"}, ${cp.media_type || "?"}) — ${caption}\n  URL: ${cp.url} · transcript ${hasT ? "cached (below)" : "not fetched — call analyzePost"} · vision ${hasV ? "cached (below)" : "not fetched — call analyzePost"}` +
+            (hasT ? `\n  Transcript: ${(cp.transcript as string).slice(0, 1500)}` : "") +
+            (hasV ? `\n  Vision: ${(cp.vision_analysis_md as string).slice(0, 1200)}` : "")
+        );
       } else if (kind === "card" && item.card) {
         const card = item.card as { body_md: string };
         lines.push(`- CARD: ${card.body_md?.slice(0, 200) || "(empty)"}`);
