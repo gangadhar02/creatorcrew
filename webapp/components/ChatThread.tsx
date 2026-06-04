@@ -1,8 +1,10 @@
 "use client";
 
 import { memo, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, X, Fingerprint } from "lucide-react";
+import { toast } from "sonner";
 import { Streamdown } from "streamdown";
 import ChatRow from "./ChatRow";
 import { Button } from "@/components/ui/button";
@@ -59,9 +61,12 @@ export default function ChatThread({
    *  viewport, and drop the page-level negative margins + title bar. */
   embedded?: boolean;
 }) {
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [savingVoice, setSavingVoice] = useState(false);
+  const isVoiceBuild = chat.context_kind === "voice_build";
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const title = chat.title;
   const [pendingMentions, setPendingMentions] = useState<Mention[]>([]);
@@ -289,6 +294,28 @@ export default function ChatThread({
     }
   }
 
+  async function saveVoice() {
+    if (savingVoice) return;
+    setSavingVoice(true);
+    const t = toast.loading("Saving your voice…");
+    try {
+      const res = await fetch("/api/voice/save-from-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chat.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.voice_id) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      toast.success("Voice saved", { id: t });
+      router.push(`/voice/${data.voice_id}`);
+    } catch (e) {
+      toast.error("Couldn't save voice", { id: t, description: String(e) });
+      setSavingVoice(false);
+    }
+  }
+
   function onTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     // Plain Enter sends; Shift+Enter = newline. When the @-mention popup is
     // open, its capture-phase listener picks the highlighted item instead.
@@ -309,8 +336,19 @@ export default function ChatThread({
     >
       {/* Slim title bar — the dialog provides its own header when embedded */}
       {!embedded && (
-        <div className="flex h-10 shrink-0 items-center border-b border-border/50 px-6">
+        <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/50 px-6">
           <ChatTitlePicker currentChatId={chat.id} title={title} />
+          {isVoiceBuild && (
+            <Button
+              size="sm"
+              onClick={saveVoice}
+              disabled={savingVoice}
+              className="h-7 gap-1.5"
+            >
+              <Fingerprint className="h-3.5 w-3.5" />
+              {savingVoice ? "Saving…" : "Save voice"}
+            </Button>
+          )}
         </div>
       )}
 

@@ -118,6 +118,14 @@ export default async function RootLayout({
                 boards,
                 recentChats,
               }}
+              onboarding={{
+                // First-run flow: brand-new users (haven't finished it and have
+                // no getting-started progress yet).
+                show: !ws.onboarded && ws.onboardingCompleted === 0,
+                defaultName:
+                  ws.userName || ws.workspaceEmail?.split("@")[0] || "",
+                defaultWorkspaceName: ws.workspaceName,
+              }}
             >
               {children}
             </AppShell>

@@ -5,6 +5,7 @@
  */
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Voice } from "./types";
+import { fetchLinkContent } from "./link-content";
 
 const apiKey = process.env.GEMINI_API_KEY!;
 const model = process.env.IDEATION_MODEL || "gemini-2.5-pro";
@@ -109,35 +110,16 @@ export async function extractVoiceFromLinks(
   urls: string[]
 ): Promise<Partial<Voice>> {
   const ai = new GoogleGenAI({ apiKey });
+  // Pull readable content per link: IG/YouTube transcripts, X tweet text, or
+  // page text. Each link fails soft so one bad URL doesn't sink the batch.
   const fetched = await Promise.all(
-    urls.slice(0, 5).map(async (url) => {
-      try {
-        const r = await fetch(url, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/130.0 Safari/537.36",
-          },
-        });
-        if (!r.ok) return { url, content: `(failed to fetch: ${r.status})` };
-        const html = await r.text();
-        // Strip HTML tags and scripts to keep the prompt focused on text.
-        const text = html
-          .replace(/<script[\s\S]*?<\/script>/gi, "")
-          .replace(/<style[\s\S]*?<\/style>/gi, "")
-          .replace(/<[^>]+>/g, " ")
-          .replace(/\s+/g, " ")
-          .slice(0, 4000);
-        return { url, content: text };
-      } catch (e) {
-        return { url, content: `(fetch error: ${e})` };
-      }
-    })
+    urls.slice(0, 5).map((url) => fetchLinkContent(url))
   );
 
   const prompt = `You are analyzing a creator's published content to extract their authentic writing voice. Build a precise voice profile they can use for AI-assisted drafts in their actual style.
 
 Content sources:
-${fetched.map((f, i) => `\n--- Source ${i + 1}: ${f.url} ---\n${f.content}`).join("\n")}
+${fetched.map((f, i) => `\n--- Source ${i + 1}: ${f.label} (${f.url}) ---\n${f.text}`).join("\n")}
 
 Extract a voice that captures THIS creator's distinctive register. Lift exact vocabulary they use. Capture their formatting habits (hook style, paragraph rhythm, CTA pattern). The output should feel unmistakably theirs, not a generic creator template.
 

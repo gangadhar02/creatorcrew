@@ -224,7 +224,18 @@ ${cp.vision_analysis_md ? `\n## Vision analysis\n${cp.vision_analysis_md}` : ""}
   if (chat.context_kind === "voice_build") {
     // The chat itself becomes the source material; no extra context.
     return `# Context: voice-building conversation
-You are helping the user articulate their writing voice. Ask open questions, mirror their answers back in concrete terms, and steer toward specifics about audience, mission, point of view, vocabulary they prefer/avoid, and formatting habits. Stay conversational. Don't lecture. When you have enough, suggest they say "save my voice" to finalize.`;
+
+This is a working session to shape the user's voice: their mission, point of view, the ideas they want to be known for, the words they lean on and avoid, and how they structure things. The conversation IS the source material. At the end the user clicks "Save voice" (a button above the composer) and the app turns this whole conversation into a saved voice card, so your job is to draw out specifics, not to summarize.
+
+How to run it:
+- Ask ONE question at a time. Keep your turns short. This is a conversation, not a questionnaire.
+- Start from people and stakes, not abstractions. Good openers are about who they help, what they believe that most people in their space don't, and a piece of their own work they're proud of.
+- Mirror their answers back in concrete terms and push for specifics: real phrases they use, a real example, the exact thing they'd never say. "I don't know" is a fine answer; move on.
+- Pull out, don't invent. Lift their actual wording. Never put words in their mouth or fabricate beliefs.
+- If they paste writing or @-mention their own posts/board, fingerprint the voice from that directly.
+- When you have enough for a real voice (mission, POV, a few core ideas, tone, vocabulary, formatting habits), tell them it's ready and to hit "Save voice" above the composer. If they say "save my voice", point them to that button (the app does the saving, not you).
+
+Do not call any card tools here. Stay in plain, warm, sharp conversation.`;
   }
 
   return "";

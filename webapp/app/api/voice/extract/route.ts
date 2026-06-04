@@ -16,6 +16,7 @@ import {
   extractVoiceFromLinks,
   extractVoiceFromChat,
 } from "@/lib/extract-voice";
+import { createVoiceRow } from "@/lib/voice-create";
 import type { Voice } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
     urls?: string[];
     archetypeId?: string;
     conversation?: { role: "user" | "assistant"; content: string }[];
+    saveToBoard?: boolean;
   };
   const ws = await getWorkspaceContext();
   if (!ws.workspaceId) {
@@ -35,17 +37,18 @@ export async function POST(request: NextRequest) {
   const sb = getSupabase();
 
   let payload: Partial<Voice>;
+  let linkUrls: string[] = [];
 
   try {
     if (body.kind === "links") {
-      const urls = (body.urls || []).filter((u) => u && u.trim().length > 0);
-      if (urls.length === 0) {
+      linkUrls = (body.urls || []).filter((u) => u && u.trim().length > 0);
+      if (linkUrls.length === 0) {
         return NextResponse.json(
           { error: "links required" },
           { status: 400 }
         );
       }
-      payload = await extractVoiceFromLinks(urls);
+      payload = await extractVoiceFromLinks(linkUrls);
     } else if (body.kind === "archetype") {
       if (!body.archetypeId) {
         return NextResponse.json(
@@ -96,48 +99,75 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 
-  const row = {
-    workspace_id: ws.workspaceId,
-    name: payload.name || "Untitled voice",
-    archetype: payload.archetype || null,
-    mission_md: payload.mission_md || null,
-    audience_md: payload.audience_md || null,
-    pov_md: payload.pov_md || null,
-    core_ideas_md: payload.core_ideas_md || null,
-    vocabulary: payload.vocabulary || {},
-    tone_md: payload.tone_md || null,
-    always_do_md: payload.always_do_md || null,
-    avoid_md: payload.avoid_md || null,
-    formatting_md: payload.formatting_md || null,
-    writing_samples_md: payload.writing_samples_md || null,
-    source_links: payload.source_links || [],
-    is_default: false,
-    is_archetype: false,
-  };
-
-  const { data, error } = await sb
-    .from("voices")
-    .insert(row)
-    .select("id")
-    .single();
-  if (error || !data) {
+  try {
+    const voiceId = await createVoiceRow(ws.workspaceId, payload);
+    if (body.kind === "links" && body.saveToBoard && linkUrls.length > 0) {
+      // Best-effort: drop the source links onto a "Voice Sources" board so the
+      // user can return to them. Never blocks the voice creation.
+      try {
+        await saveLinksToBoard(ws.workspaceId, linkUrls);
+      } catch (e) {
+        console.warn("[voice/extract] saveToBoard failed:", e);
+      }
+    }
+    return NextResponse.json({ ok: true, voice_id: voiceId });
+  } catch (e) {
     return NextResponse.json(
-      { error: error?.message || "insert failed" },
+      { error: e instanceof Error ? e.message : String(e) },
       { status: 500 }
     );
   }
+}
 
-  // Auto-mark onboarding 'build_voice' complete (fire and forget)
-  await sb
-    .from("onboarding_progress")
-    .upsert(
-      {
-        workspace_id: ws.workspaceId,
-        task_key: "build_voice",
-        completed_at: new Date().toISOString(),
-      },
-      { onConflict: "workspace_id,task_key" }
-    );
+/** Find or create a "Voice Sources" board and add each link as a card. */
+async function saveLinksToBoard(workspaceId: string, urls: string[]) {
+  const sb = getSupabase();
+  const existing = await sb
+    .from("boards")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .eq("kind", "board")
+    .eq("name", "Voice Sources")
+    .limit(1)
+    .maybeSingle();
+  let boardId = (existing.data as { id: string } | null)?.id;
+  if (!boardId) {
+    const ins = await sb
+      .from("boards")
+      .insert({
+        workspace_id: workspaceId,
+        name: "Voice Sources",
+        description: "Links you used to build your voice.",
+        kind: "board",
+      })
+      .select("id")
+      .single();
+    boardId = (ins.data as { id: string } | null)?.id;
+  }
+  if (!boardId) return;
 
-  return NextResponse.json({ ok: true, voice_id: (data as { id: string }).id });
+  const posRes = await sb
+    .from("board_items")
+    .select("position")
+    .eq("board_id", boardId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let pos = ((posRes.data as { position: number } | null)?.position ?? -1) + 1;
+
+  for (const url of urls) {
+    const card = await sb
+      .from("cards")
+      .insert({ body_md: url })
+      .select("id")
+      .single();
+    const cardId = (card.data as { id: string } | null)?.id;
+    if (!cardId) continue;
+    await sb.from("board_items").insert({
+      board_id: boardId,
+      kind: "card",
+      card_id: cardId,
+      position: pos++,
+    });
+  }
 }

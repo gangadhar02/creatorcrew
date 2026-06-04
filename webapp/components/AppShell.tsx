@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Sidebar from "./Sidebar";
 import PostChatPanel from "./PostChatPanel";
+import OnboardingFlow from "./OnboardingFlow";
 import { PostChatContext } from "./post-chat";
 import { isSidebarCollapsed, setSidebarCollapsed } from "@/lib/sidebar-state";
 
@@ -27,11 +28,19 @@ type PanelState = { postId: string; handle?: string | null } | null;
  * not an overlay) and collapses the sidebar so the workspace has room; closing
  * restores the prior sidebar state.
  */
+type OnboardingProps = {
+  show: boolean;
+  defaultName: string;
+  defaultWorkspaceName: string;
+};
+
 export default function AppShell({
   sidebar,
+  onboarding,
   children,
 }: {
   sidebar: SidebarProps;
+  onboarding: OnboardingProps;
   children: React.ReactNode;
 }) {
   const [panel, setPanel] = useState<PanelState>(null);
@@ -85,6 +94,13 @@ export default function AppShell({
           </motion.aside>
         )}
       </AnimatePresence>
+
+      {onboarding.show && (
+        <OnboardingFlow
+          defaultName={onboarding.defaultName}
+          defaultWorkspaceName={onboarding.defaultWorkspaceName}
+        />
+      )}
     </PostChatContext.Provider>
   );
 }

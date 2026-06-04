@@ -23,6 +23,10 @@ export type WorkspaceContext = {
   workspaceEmail: string;
   userId: string | null;
   userEmail: string | null;
+  /** Display name the user chose in onboarding (user_metadata.display_name). */
+  userName: string | null;
+  /** True once the user has finished (or skipped) the first-run onboarding flow. */
+  onboarded: boolean;
   onboardingCompleted: number;
   onboardingTotal: number;
   onboarding: { task_key: string; completed_at: string | null }[];
@@ -42,6 +46,8 @@ const EMPTY_CONTEXT: WorkspaceContext = {
   workspaceEmail: "",
   userId: null,
   userEmail: null,
+  userName: null,
+  onboarded: false,
   onboardingCompleted: 0,
   onboardingTotal: TOTAL_TASKS,
   onboarding: [],
@@ -62,6 +68,12 @@ export const getWorkspaceContext = cache(
 
     const sb = getSupabase();
     const userEmail = user.email || null;
+    const meta = (user.user_metadata || {}) as Record<string, unknown>;
+    const userName =
+      typeof meta.display_name === "string" && meta.display_name.trim()
+        ? meta.display_name
+        : null;
+    const onboarded = meta.onboarded === true;
 
     // 1. Already-claimed workspace?
     const ownedRes = await sb
@@ -135,7 +147,7 @@ export const getWorkspaceContext = cache(
 
     if (!ws) {
       // Couldn't read or create — return empty shell rather than throwing.
-      return { ...EMPTY_CONTEXT, userId: user.id, userEmail };
+      return { ...EMPTY_CONTEXT, userId: user.id, userEmail, userName, onboarded };
     }
 
     const obRes = await sb
@@ -152,6 +164,8 @@ export const getWorkspaceContext = cache(
       workspaceEmail: ws.owner_email || userEmail || "",
       userId: user.id,
       userEmail,
+      userName,
+      onboarded,
       onboardingCompleted: completed,
       onboardingTotal: TOTAL_TASKS,
       onboarding,

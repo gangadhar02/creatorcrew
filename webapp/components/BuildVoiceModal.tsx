@@ -7,25 +7,57 @@ import type { Voice } from "@/lib/types";
 
 type Mode = "menu" | "links" | "archetype" | "chat";
 
+// Crisp display copy for the archetype cards (the stored mission_md is longer;
+// this keeps the picker scannable). Keyed by archetype name.
+const ARCHETYPE_META: Record<string, { emoji: string; blurb: string }> = {
+  "The Founder": {
+    emoji: "🛠️",
+    blurb: "Builder mid-build. Story first, framework never. Specific scars beat clean advice.",
+  },
+  "The Contrarian": {
+    emoji: "🗡️",
+    blurb: "Finds the assumption everyone is making and asks why. Argues the position no one else will.",
+  },
+  "The Philosopher": {
+    emoji: "🔭",
+    blurb: "Asks more than answers. Leads the reader to their own conclusion with the sharper question.",
+  },
+  "The Operator": {
+    emoji: "⚙️",
+    blurb: "No fluff. Lists, steps, tradeoffs. Tells you what to do today, not what to feel about it.",
+  },
+  "The Educator": {
+    emoji: "📐",
+    blurb: "Makes the complicated thing obvious. Examples first, theory last, generous with the why.",
+  },
+  "The Creative": {
+    emoji: "🎨",
+    blurb: "Reaches for the unexpected image. Writes the one line the reader has to screenshot.",
+  },
+};
+
 export default function BuildVoiceModal({
   open,
   onClose,
+  initialMode = "menu",
 }: {
   open: boolean;
   onClose: () => void;
+  /** Which screen to open on (lets onboarding deep-link a chosen method). */
+  initialMode?: Mode;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("menu");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [archetypes, setArchetypes] = useState<Voice[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setMode("menu");
+      setMode(initialMode);
       setError(null);
     }
-  }, [open]);
+  }, [open, initialMode]);
 
   useEffect(() => {
     if (open && archetypes.length === 0) {
@@ -48,14 +80,14 @@ export default function BuildVoiceModal({
 
   if (!open) return null;
 
-  async function submitLinks(urls: string[]) {
+  async function submitLinks(urls: string[], saveToBoard: boolean) {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/voice/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "links", urls }),
+        body: JSON.stringify({ kind: "links", urls, saveToBoard }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -114,6 +146,25 @@ export default function BuildVoiceModal({
     }
   }
 
+  async function startGuidedChat() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/voice/build-chat", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.chat_id) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      router.push(`/chats/${data.chat_id}`);
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -141,7 +192,10 @@ export default function BuildVoiceModal({
         {mode === "menu" && (
           <MenuView
             archetypeCount={archetypes.length}
-            onPick={(m) => setMode(m)}
+            onPick={(m) => {
+              if (m === "chat") startGuidedChat();
+              else setMode(m);
+            }}
           />
         )}
         {mode === "links" && (
@@ -272,32 +326,67 @@ function LinksView({
 }: {
   loading: boolean;
   onBack: () => void;
-  onSubmit: (urls: string[]) => void;
+  onSubmit: (urls: string[], saveToBoard: boolean) => void;
 }) {
-  const [rows, setRows] = useState(["", "", "", "", ""]);
+  const [rows, setRows] = useState<string[]>([""]);
+  const [saveToBoard, setSaveToBoard] = useState(true);
+
   return (
     <div className="px-5 pt-4 pb-5 space-y-3">
-      <h3 className="text-base font-semibold">Paste up to 5 of your own links</h3>
+      <h3 className="text-base font-semibold">Paste links of your content</h3>
       <p className="text-xs text-[var(--muted-foreground)]">
-        YouTube videos, tweets, threads, IG posts, Substack articles, blog
-        posts, anything you wrote or said.
+        We&apos;ll read each link and build your voice from the content. YouTube
+        videos, X / Twitter threads, Substack posts, Instagram, TikTok, and most
+        blog posts work.
       </p>
       <div className="space-y-2">
         {rows.map((v, i) => (
-          <input
-            key={i}
-            type="url"
-            value={v}
-            onChange={(e) => {
-              const next = [...rows];
-              next[i] = e.target.value;
-              setRows(next);
-            }}
-            placeholder={`https://… (link ${i + 1})`}
-            className="w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
-          />
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-[var(--muted-foreground)]">🔗</span>
+            <input
+              type="url"
+              value={v}
+              onChange={(e) => {
+                const next = [...rows];
+                next[i] = e.target.value;
+                setRows(next);
+              }}
+              placeholder="https://youtube.com/watch?v=…"
+              className="w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+            />
+          </div>
         ))}
+        {rows.length < 5 && (
+          <button
+            type="button"
+            onClick={() => setRows((r) => [...r, ""])}
+            className="w-full rounded-md border border-dashed border-[var(--border)] px-3 py-2 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+          >
+            → Add another link
+          </button>
+        )}
       </div>
+
+      <label className="flex cursor-pointer items-start gap-2 rounded-md border border-[var(--border)] p-3">
+        <input
+          type="checkbox"
+          checked={saveToBoard}
+          onChange={(e) => setSaveToBoard(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span className="text-xs">
+          <span className="font-medium">Also save these links to a board</span>
+          <span className="block text-[var(--muted-foreground)]">
+            We&apos;ll drop them on a <b>Voice Sources</b> board so you can come
+            back to them whenever you need more context to draft from.
+          </span>
+        </span>
+      </label>
+
+      <p className="text-[11px] text-[var(--muted-foreground)]">
+        Tip: 2 to 3 links you&apos;re most proud of beats 5 random ones.
+      </p>
+
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
@@ -309,12 +398,12 @@ function LinksView({
           onClick={() => {
             const urls = rows.map((r) => r.trim()).filter((r) => r.length > 0);
             if (urls.length === 0) return;
-            onSubmit(urls);
+            onSubmit(urls, saveToBoard);
           }}
           disabled={loading || rows.every((r) => !r.trim())}
           className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] disabled:opacity-50"
         >
-          {loading ? "Reading + extracting…" : "Build voice"}
+          {loading ? "Reading + extracting…" : "Create voice"}
         </button>
       </div>
     </div>
@@ -337,11 +426,13 @@ function ArchetypeView({
     <div className="px-5 pt-4 pb-5 space-y-3">
       <h3 className="text-base font-semibold">Pick a starting point</h3>
       <p className="text-xs text-[var(--muted-foreground)]">
-        Six archetype voices. Pick the closest one. You can refine it after.
+        Each archetype produces a distinctly different chat. Edit any field
+        after.
       </p>
-      <div className="grid grid-cols-2 gap-2 max-h-[40vh] overflow-y-auto">
+      <div className="grid grid-cols-2 gap-2 max-h-[44vh] overflow-y-auto">
         {archetypes.map((a) => {
           const active = picked === a.id;
+          const meta = ARCHETYPE_META[a.name];
           return (
             <button
               key={a.id}
@@ -353,9 +444,12 @@ function ArchetypeView({
                   : "border-[var(--border)] hover:border-[var(--primary)]/50"
               )}
             >
-              <div className="font-medium text-sm">{a.name}</div>
-              <p className="mt-1 text-[11px] text-[var(--muted-foreground)] line-clamp-3">
-                {a.mission_md || a.pov_md || ""}
+              <div className="flex items-center gap-1.5 font-medium text-sm">
+                {meta?.emoji && <span>{meta.emoji}</span>}
+                {a.name}
+              </div>
+              <p className="mt-1 text-[11px] leading-relaxed text-[var(--muted-foreground)] line-clamp-3">
+                {meta?.blurb || a.mission_md || a.pov_md || ""}
               </p>
             </button>
           );
