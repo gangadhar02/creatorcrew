@@ -4,6 +4,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,6 +16,9 @@ function classifyKind(mimeType: string): "image" | "pdf" | "file" {
 }
 
 export async function POST(request: NextRequest) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const form = await request.formData();
   const file = form.get("file") as File | null;
   if (!file) {
@@ -42,6 +46,7 @@ export async function POST(request: NextRequest) {
   const { data: row, error: rowErr } = await sb
     .from("files")
     .insert({
+      workspace_id: ws.workspaceId,
       kind: classifyKind(file.type || ""),
       storage_bucket: "board-files",
       storage_path: storagePath,

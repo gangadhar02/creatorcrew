@@ -158,7 +158,7 @@ async function saveLinksToBoard(workspaceId: string, urls: string[]) {
   for (const url of urls) {
     const card = await sb
       .from("cards")
-      .insert({ body_md: url })
+      .insert({ workspace_id: workspaceId, body_md: url })
       .select("id")
       .single();
     const cardId = (card.data as { id: string } | null)?.id;

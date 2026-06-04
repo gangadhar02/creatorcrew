@@ -11,10 +11,14 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = (await request.json().catch(() => ({}))) as {
     body_md?: string;
     color?: string;
@@ -23,9 +27,22 @@ export async function POST(request: NextRequest) {
   };
   const sb = getSupabase();
 
+  // If attaching to a board, it must belong to the caller's workspace.
+  if (body.board_id) {
+    const { data: board } = await sb
+      .from("boards")
+      .select("id")
+      .eq("id", body.board_id)
+      .eq("workspace_id", ws.workspaceId)
+      .maybeSingle();
+    if (!board)
+      return NextResponse.json({ error: "board not found" }, { status: 404 });
+  }
+
   const { data: card, error } = await sb
     .from("cards")
     .insert({
+      workspace_id: ws.workspaceId,
       body_md: body.body_md || "",
       color: body.color || "gray",
     })

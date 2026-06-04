@@ -71,12 +71,16 @@ export async function GET(request: NextRequest) {
     sb.from("boards").select("id, name").ilike("name", like).limit(limit),
     sb
       .from("cards")
-      .select("id, title, board_id, boards:board_id(name)")
-      .ilike("title", like)
+      // cards have no title/board_id of their own; the parent board (if any) is
+      // reached through board_items, and the searchable text is body_md.
+      .select("id, body_md, board_items(board_id, boards(name))")
+      .eq("workspace_id", ws.workspaceId)
+      .ilike("body_md", like)
       .limit(limit),
     sb
       .from("documents")
-      .select("id, title, board_id, boards:board_id(name)")
+      .select("id, title, board_items(board_id, boards(name))")
+      .eq("workspace_id", ws.workspaceId)
       .ilike("title", like)
       .limit(limit),
     sb
@@ -138,33 +142,43 @@ export async function GET(request: NextRequest) {
       href: `/boards/${r.id}`,
     });
   }
+  type BoardItemLink = {
+    board_id: string | null;
+    boards?: { name: string } | { name: string }[] | null;
+  };
+  const firstBoard = (items?: BoardItemLink[] | null) => {
+    const link = items?.find((i) => i.board_id);
+    if (!link) return null;
+    const board = Array.isArray(link.boards) ? link.boards[0] : link.boards;
+    return { board_id: link.board_id as string, name: board?.name };
+  };
+
   for (const r of (cardsRes.data || []) as {
     id: string;
-    title: string;
-    board_id: string;
-    boards?: { name: string } | { name: string }[] | null;
+    body_md: string | null;
+    board_items?: BoardItemLink[] | null;
   }[]) {
-    const parent = Array.isArray(r.boards) ? r.boards[0] : r.boards;
+    const parent = firstBoard(r.board_items);
+    const text = (r.body_md || "").trim();
     hits.push({
       kind: "card",
       id: r.id,
-      title: r.title,
-      subtitle: parent ? `in ${parent.name}` : undefined,
-      href: `/boards/${r.board_id}#card-${r.id}`,
+      title: text.slice(0, 80) || "Untitled card",
+      subtitle: parent?.name ? `in ${parent.name}` : undefined,
+      href: parent ? `/boards/${parent.board_id}#card-${r.id}` : "/boards",
     });
   }
   for (const r of (docsRes.data || []) as {
     id: string;
     title: string;
-    board_id: string | null;
-    boards?: { name: string } | { name: string }[] | null;
+    board_items?: BoardItemLink[] | null;
   }[]) {
-    const parent = Array.isArray(r.boards) ? r.boards[0] : r.boards;
+    const parent = firstBoard(r.board_items);
     hits.push({
       kind: "document",
       id: r.id,
       title: r.title,
-      subtitle: parent ? `in ${parent.name}` : undefined,
+      subtitle: parent?.name ? `in ${parent.name}` : undefined,
       href: `/documents/${r.id}`,
     });
   }

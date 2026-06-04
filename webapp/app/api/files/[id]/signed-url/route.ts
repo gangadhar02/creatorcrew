@@ -3,6 +3,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 
@@ -10,12 +11,17 @@ export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const sb = getSupabase();
+
   const { data: file } = await sb
     .from("files")
     .select("storage_bucket, storage_path")
     .eq("id", id)
+    .eq("workspace_id", ws.workspaceId)
     .maybeSingle();
   if (!file) return NextResponse.json({ error: "not found" }, { status: 404 });
   const f = file as { storage_bucket: string; storage_path: string };

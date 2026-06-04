@@ -50,6 +50,15 @@ export async function POST(
   const nextPos =
     ((maxRow?.[0] as { position: number } | undefined)?.position ?? -1) + 1;
 
+  // The board's workspace owns any card/document created here.
+  const { data: boardRow } = await sb
+    .from("boards")
+    .select("workspace_id")
+    .eq("id", boardId)
+    .maybeSingle();
+  const boardWorkspaceId =
+    (boardRow as { workspace_id: string | null } | null)?.workspace_id ?? null;
+
   const row: Record<string, unknown> = {
     board_id: boardId,
     kind: body.kind,
@@ -89,14 +98,7 @@ export async function POST(
         }
 
         // Attach the new creator to the board's workspace (fall back to auth).
-        const { data: boardRow } = await sb
-          .from("boards")
-          .select("workspace_id")
-          .eq("id", boardId)
-          .maybeSingle();
-        let workspaceId =
-          (boardRow as { workspace_id: string | null } | null)?.workspace_id ??
-          null;
+        let workspaceId = boardWorkspaceId;
         if (!workspaceId) {
           const ws = await getWorkspaceContext();
           workspaceId = ws.workspaceId;
@@ -141,6 +143,7 @@ export async function POST(
     const { data: card, error } = await sb
       .from("cards")
       .insert({
+        workspace_id: boardWorkspaceId,
         body_md: body.body_md || "",
         color: body.color || "gray",
       })
@@ -156,6 +159,7 @@ export async function POST(
     const { data: doc, error } = await sb
       .from("documents")
       .insert({
+        workspace_id: boardWorkspaceId,
         title: body.title || "Untitled",
         body_md: body.body_md || "",
         voice_id: body.voice_id || null,
