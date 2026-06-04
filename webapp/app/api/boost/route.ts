@@ -37,6 +37,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "postId required" }, { status: 400 });
   }
 
+  // Resolve the workspace once; every post lookup below is scoped to it so a
+  // caller can't seed a chat from another workspace's post by guessing its id.
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   // "Chat" path — open a fresh AI chat seeded with the post so the user can
   // ask anything about it. No preset, no forced output shape.
   if (body.chat) {
@@ -46,9 +53,10 @@ export async function POST(request: NextRequest) {
       .select(
         `id, platform, url, media_type, title_or_caption, like_count,
          comment_count, view_count, outlier_multiplier, transcript,
-         creator:creators!inner(handle)`
+         creator:creators!inner(handle, workspace_id)`
       )
       .eq("id", postId)
+      .eq("creators.workspace_id", ws.workspaceId)
       .maybeSingle();
     if (!rawPost) {
       return NextResponse.json({ error: "post not found" }, { status: 404 });
@@ -114,6 +122,7 @@ export async function POST(request: NextRequest) {
            avatar_url, is_verified, platform, workspace_id)`
       )
       .eq("id", postId)
+      .eq("creators.workspace_id", ws.workspaceId)
       .maybeSingle();
     if (!rawPost) {
       return NextResponse.json({ error: "post not found" }, { status: 404 });
@@ -122,19 +131,16 @@ export async function POST(request: NextRequest) {
     const userMessage = buildPostBoostUserMessage(preset, post);
 
     // Mark onboarding complete
-    const ws = await getWorkspaceContext();
-    if (ws.workspaceId) {
-      await sb
-        .from("onboarding_progress")
-        .upsert(
-          {
-            workspace_id: ws.workspaceId,
-            task_key: "use_boost",
-            completed_at: new Date().toISOString(),
-          },
-          { onConflict: "workspace_id,task_key" }
-        );
-    }
+    await sb
+      .from("onboarding_progress")
+      .upsert(
+        {
+          workspace_id: ws.workspaceId,
+          task_key: "use_boost",
+          completed_at: new Date().toISOString(),
+        },
+        { onConflict: "workspace_id,task_key" }
+      );
 
     return await spawnChat(request, {
       context_kind: "creator_post",
@@ -156,20 +162,17 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const ws = await getWorkspaceContext();
-    if (ws.workspaceId) {
-      const sb = getSupabase();
-      await sb
-        .from("onboarding_progress")
-        .upsert(
-          {
-            workspace_id: ws.workspaceId,
-            task_key: "use_boost",
-            completed_at: new Date().toISOString(),
-          },
-          { onConflict: "workspace_id,task_key" }
-        );
-    }
+    const sb = getSupabase();
+    await sb
+      .from("onboarding_progress")
+      .upsert(
+        {
+          workspace_id: ws.workspaceId,
+          task_key: "use_boost",
+          completed_at: new Date().toISOString(),
+        },
+        { onConflict: "workspace_id,task_key" }
+      );
     return await spawnChat(request, {
       context_kind: "creator_post",
       context_id: postId,

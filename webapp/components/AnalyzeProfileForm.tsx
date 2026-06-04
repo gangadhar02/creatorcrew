@@ -232,7 +232,7 @@ export default function AnalyzeProfileForm() {
         </p>
       )}
       {error && (
-        <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{error}</p>
+        <p className="mt-2 text-xs text-destructive">{error}</p>
       )}
     </div>
   );

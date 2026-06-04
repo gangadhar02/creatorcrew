@@ -398,7 +398,7 @@ export default function ChatThread({
                 ))}
                 {pendingFiles.map((f, i) => (
                   <Badge
-                    key={`file-${i}-${f.name}`}
+                    key={`file-${f.name}-${f.size}-${f.lastModified}`}
                     variant="secondary"
                     className="gap-1 pl-2 pr-1 text-[10px] font-normal"
                   >
@@ -495,7 +495,7 @@ const ChatMessageView = memo(function ChatMessageView({
 }) {
   if (m.role === "system") {
     return (
-      <div className="mx-auto max-w-[90%] rounded-xl border border-rose-300 bg-rose-50/50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/20 dark:text-rose-300">
+      <div className="mx-auto max-w-[90%] rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
         {m.content_md}
       </div>
     );

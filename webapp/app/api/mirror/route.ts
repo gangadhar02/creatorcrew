@@ -5,6 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { mirrorAllPending, mirrorAvatar, mirrorThumbnail } from "@/lib/mirror";
 
 export const runtime = "nodejs";
@@ -12,15 +13,20 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const sb = getSupabase();
   const postId = request.nextUrl.searchParams.get("post_id");
   const creatorId = request.nextUrl.searchParams.get("creator_id");
 
   if (postId) {
+    // creator_posts has no workspace_id — scope via creators (creator_id FK).
     const { data } = await sb
       .from("creator_posts")
-      .select("id, platform, platform_pk, thumbnail_url")
+      .select("id, platform, platform_pk, thumbnail_url, creator:creators!inner(workspace_id)")
       .eq("id", postId)
+      .eq("creators.workspace_id", ws.workspaceId)
       .maybeSingle();
     if (!data)
       return NextResponse.json({ error: "post not found" }, { status: 404 });
@@ -35,6 +41,7 @@ export async function POST(request: NextRequest) {
       .from("creators")
       .select("id, platform, avatar_url")
       .eq("id", creatorId)
+      .eq("workspace_id", ws.workspaceId)
       .maybeSingle();
     if (!data)
       return NextResponse.json({ error: "creator not found" }, { status: 404 });

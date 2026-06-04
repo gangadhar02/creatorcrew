@@ -112,7 +112,7 @@ export default function NewBoardClient({ template }: { template?: Board }) {
         ✕
       </button>
       {error && (
-        <span className="text-xs text-rose-500">{error}</span>
+        <span className="text-xs text-destructive">{error}</span>
       )}
     </form>
   );

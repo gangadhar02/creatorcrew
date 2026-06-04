@@ -5,6 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 
@@ -12,12 +13,16 @@ export async function GET(
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const sb = getSupabase();
   const { data: list } = await sb
     .from("creator_lists")
     .select("*")
     .eq("id", id)
+    .eq("workspace_id", ws.workspaceId)
     .maybeSingle();
   if (!list) return NextResponse.json({ error: "not found" }, { status: 404 });
   const { data: members } = await sb
@@ -36,6 +41,9 @@ export async function PATCH(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const body = (await request.json()) as Record<string, unknown>;
   const allowed = ["name", "description", "color", "position"];
@@ -49,7 +57,8 @@ export async function PATCH(
   const { error } = await sb
     .from("creator_lists")
     .update(update)
-    .eq("id", id);
+    .eq("id", id)
+    .eq("workspace_id", ws.workspaceId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
@@ -58,9 +67,16 @@ export async function DELETE(
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const sb = getSupabase();
-  const { error } = await sb.from("creator_lists").delete().eq("id", id);
+  const { error } = await sb
+    .from("creator_lists")
+    .delete()
+    .eq("id", id)
+    .eq("workspace_id", ws.workspaceId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

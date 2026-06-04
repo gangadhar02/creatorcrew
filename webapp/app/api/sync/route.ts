@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 /**
  * POST /api/sync
@@ -29,6 +30,13 @@ const GITHUB_REF = process.env.GITHUB_REPO_REF || "main";
 const WORKFLOW_FILE = "sync.yml";
 
 export async function POST() {
+  // Auth-gate: this triggers a GitHub Actions run / spawns a process, so it
+  // must not be callable anonymously.
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   const token =
     process.env.SYNC_DISPATCH_TOKEN || process.env.ANALYZER_DISPATCH_TOKEN;
 

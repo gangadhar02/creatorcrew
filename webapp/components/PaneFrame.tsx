@@ -63,7 +63,7 @@ export default function PaneFrame({
             e.stopPropagation();
             onClose();
           }}
-          className="rounded p-1 text-[var(--muted-foreground)] hover:text-rose-500 hover:bg-rose-500/10"
+          className="rounded p-1 text-[var(--muted-foreground)] hover:text-destructive hover:bg-destructive/10"
           title="Close pane"
         >
           <CloseIcon />

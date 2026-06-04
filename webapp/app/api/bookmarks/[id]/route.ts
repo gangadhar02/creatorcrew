@@ -4,6 +4,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,9 @@ export async function PATCH(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const body = (await request.json()) as {
     notes_md?: string;
@@ -30,7 +34,11 @@ export async function PATCH(
   if (typeof body.w === "number") update.w = body.w;
 
   const sb = getSupabase();
-  const { error } = await sb.from("bookmark_items").update(update).eq("id", id);
+  const { error } = await sb
+    .from("bookmark_items")
+    .update(update)
+    .eq("id", id)
+    .eq("workspace_id", ws.workspaceId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
@@ -39,9 +47,16 @@ export async function DELETE(
   _req: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const sb = getSupabase();
-  const { error } = await sb.from("bookmark_items").delete().eq("id", id);
+  const { error } = await sb
+    .from("bookmark_items")
+    .delete()
+    .eq("id", id)
+    .eq("workspace_id", ws.workspaceId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

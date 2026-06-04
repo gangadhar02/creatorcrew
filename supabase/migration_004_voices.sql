@@ -109,7 +109,7 @@ insert into voices (workspace_id, name, archetype, mission_md, audience_md, pov_
 select null,
   $txt$The Operator$txt$,
   $txt$The Operator$txt$,
-  $txt$Share the unsexy systems that compound — what actually moves the number.$txt$,
+  $txt$Share the unsexy systems that compound, the ones that actually move the number.$txt$,
   $txt$Operators, ops/finance/growth practitioners, and founders past product-market fit.$txt$,
   $txt$Compounding wins. Sexy does not. Most leverage comes from boring systems applied consistently.$txt$,
   $txt$- One process beats ten frameworks
@@ -137,7 +137,7 @@ select null,
 - Every obvious thing was once a discovery
 - Build understanding, then build speed$txt$,
   '{"preferred": ["let us walk through", "the reason this works is", "imagine", "step by step"], "avoid": ["simply", "just", "obviously", "trivial"]}'::jsonb,
-  $txt$Patient, warm, methodical. Never condescending — assume curiosity, not ignorance.$txt$,
+  $txt$Patient, warm, methodical. Never condescending. Assume curiosity, not ignorance.$txt$,
   $txt$Start with the question the learner is actually asking. Build the concept from the ground up. Leave them able to do it themselves.$txt$,
   $txt$Skipping steps. Talking down. Using jargon before defining it.$txt$,
   $txt$Headers per concept. Bullets for steps. Examples in code blocks. End with a try-this exercise.$txt$,
@@ -176,7 +176,7 @@ select
   w.id,
   $txt$AI Creatives (default)$txt$,
   null,
-  $txt$Teach AI creators how to ship cinematic, ad-grade, and short-form content using AI tools — without sounding generic.$txt$,
+  $txt$Teach AI creators how to ship cinematic, ad-grade, and short-form content using AI tools, without sounding generic.$txt$,
   $txt$AI Creatives, AI Filmmakers, AI Ads creators, and AI Video & Image producers.$txt$,
   $txt$The work does not look like AI anymore. Tools have evolved past the polish era. What separates great creators now is voice, technique stacks, and taste, not access.$txt$,
   $txt$- Stack multiple AI tools to break a quality ceiling

@@ -93,7 +93,7 @@ export default function BoostMenu({
         </div>
       )}
       {error && (
-        <div className="border-t border-[var(--border)] bg-rose-50 dark:bg-rose-950/30 px-3 py-1.5 text-[10px] text-rose-700 dark:text-rose-300">
+        <div className="border-t border-[var(--border)] bg-destructive/10 px-3 py-1.5 text-[10px] text-destructive">
           {error}
         </div>
       )}

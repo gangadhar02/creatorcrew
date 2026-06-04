@@ -99,6 +99,12 @@ export async function POST(request: NextRequest) {
 
   const sb = getSupabase();
   const ws = await getWorkspaceContext();
+  if (!ws.workspaceId) {
+    return new Response(
+      evString({ type: "error", message: "no workspace" }),
+      { status: 401, headers: { "Content-Type": "application/x-ndjson" } }
+    );
+  }
 
   let chat: Chat;
   if (body.chat_id) {
@@ -106,6 +112,7 @@ export async function POST(request: NextRequest) {
       .from("chats")
       .select("*")
       .eq("id", body.chat_id)
+      .eq("workspace_id", ws.workspaceId)
       .maybeSingle();
     if (!data) {
       return new Response(
@@ -115,16 +122,14 @@ export async function POST(request: NextRequest) {
     }
     chat = data as Chat;
     if (body.voice_id !== undefined && body.voice_id !== chat.voice_id) {
-      await sb.from("chats").update({ voice_id: body.voice_id }).eq("id", chat.id);
+      await sb
+        .from("chats")
+        .update({ voice_id: body.voice_id })
+        .eq("id", chat.id)
+        .eq("workspace_id", ws.workspaceId);
       chat.voice_id = body.voice_id;
     }
   } else {
-    if (!ws.workspaceId) {
-      return new Response(
-        evString({ type: "error", message: "no workspace" }),
-        { status: 500, headers: { "Content-Type": "application/x-ndjson" } }
-      );
-    }
     const ins = await sb
       .from("chats")
       .insert({

@@ -176,8 +176,8 @@ function FileTile({
   useEffect(() => {
     if (kind === "image") {
       fetch(`/api/files/${fileId}/signed-url`)
-        .then((r) => r.json())
-        .then((d) => setUrl(d.url || null))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => setUrl(d?.url || null))
         .catch(() => {});
     }
   }, [fileId, kind]);

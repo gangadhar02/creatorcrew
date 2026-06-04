@@ -8,6 +8,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { getWorkspaceContext } from "@/lib/workspace";
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Voice } from "@/lib/types";
 
@@ -48,6 +49,9 @@ export async function POST(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> }
 ) {
+  const ws = await getWorkspaceContext();
+  if (!ws.workspaceId)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await ctx.params;
   const { instruction } = (await request.json()) as { instruction: string };
   if (!instruction || !instruction.trim()) {
@@ -58,6 +62,7 @@ export async function POST(
     .from("voices")
     .select("*")
     .eq("id", id)
+    .eq("workspace_id", ws.workspaceId)
     .maybeSingle();
   const voice = data as Voice | null;
   if (!voice) {
@@ -159,7 +164,11 @@ Return only the fields you changed.`;
     });
   }
 
-  const { error } = await sb.from("voices").update(update).eq("id", id);
+  const { error } = await sb
+    .from("voices")
+    .update(update)
+    .eq("id", id)
+    .eq("workspace_id", ws.workspaceId);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

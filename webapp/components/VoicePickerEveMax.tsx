@@ -37,10 +37,15 @@ export default function VoicePickerEveMax({
 
   async function loadVoices() {
     if (voices.length > 0) return;
-    const res = await fetch("/api/tts");
-    const data = await res.json();
-    const list = (data.voices || []) as Voice[];
-    setVoices(list);
+    try {
+      const res = await fetch("/api/tts");
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = (data.voices || []) as Voice[];
+      setVoices(list);
+    } catch {
+      /* leave voices empty; the picker falls back to the default label */
+    }
   }
 
   const active = voices.find((v) => v.voice_id === voiceId);

@@ -110,7 +110,7 @@ export default function OnboardingHandlesForm() {
                 <span className="text-[10px] text-emerald-500">queued</span>
               )}
               {fields[p.id].status === "failed" && (
-                <span className="text-[10px] text-rose-500">failed</span>
+                <span className="text-[10px] text-destructive">failed</span>
               )}
             </div>
           </div>
