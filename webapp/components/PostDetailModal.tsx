@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { mediaImg } from "@/lib/proxy-image";
+import { mediaImg, mediaAsset } from "@/lib/proxy-image";
 import type { PostWithCreator } from "@/lib/discover-types";
 import type { AiOverview, AiOverviewBlock } from "@/lib/types-enrichment";
 import MarkdownView from "./MarkdownView";
@@ -45,6 +45,12 @@ export default function PostDetailModal({
     normalizeAiOverview(post.ai_overview)
   );
   const [enriching, setEnriching] = useState(false);
+  // Native video playback. Instagram's reel embed shows a non-interactive
+  // "Watch on Instagram" poster for some accounts, so we prefer playing the MP4
+  // ourselves (parsed from raw_json server-side) and only fall back to the embed
+  // when there's no usable video URL or it fails to load (e.g. an expired CDN URL).
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoFailed, setVideoFailed] = useState(false);
 
   const thumbnail = post.thumbnail_url
     ? mediaImg(post.thumbnail_url, post.platform)
@@ -67,6 +73,23 @@ export default function PostDetailModal({
     if (open) {
       fetch(`/api/post-seen/${post.id}`, { method: "POST" }).catch(() => {});
     }
+  }, [open, post.id]);
+
+  // Resolve a directly-playable video URL when the modal opens.
+  useEffect(() => {
+    setVideoUrl(null);
+    setVideoFailed(false);
+    if (!open) return;
+    let cancelled = false;
+    fetch(`/api/posts/${post.id}/media`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { videoUrl?: string | null } | null) => {
+        if (!cancelled && d?.videoUrl) setVideoUrl(d.videoUrl);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [open, post.id]);
 
   useEffect(() => {
@@ -209,7 +232,19 @@ export default function PostDetailModal({
         >
           {/* Media */}
           <div className="flex items-center justify-center bg-black p-4">
-            {embedUrl ? (
+            {videoUrl && !videoFailed ? (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video
+                key={videoUrl}
+                src={mediaAsset(videoUrl, post.platform)}
+                poster={thumbnail || undefined}
+                controls
+                autoPlay
+                playsInline
+                onError={() => setVideoFailed(true)}
+                className="block max-h-[70vh] w-auto max-w-full rounded"
+              />
+            ) : embedUrl ? (
               <iframe
                 key={embedUrl}
                 src={embedUrl}
