@@ -32,6 +32,9 @@ export default async function CreatorsPage({
         .from("creators")
         .select("*")
         .eq("workspace_id", ws.workspaceId)
+        // Only creators the user explicitly added/followed. Creators auto-created
+        // by a Discover web search are is_followed=false and stay out of here.
+        .eq("is_followed", true)
         .order("last_synced_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
     : { data: [] };

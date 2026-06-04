@@ -52,7 +52,13 @@ export async function POST(request: NextRequest) {
   const url = new URL(`/api/ingest/${ingestPlatform}`, request.url);
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      // Forward the caller's auth cookie so getWorkspaceContext() resolves the
+      // same workspace on the sub-request (else the ingest route 401s with
+      // "Unauthorized").
+      cookie: request.headers.get("cookie") ?? "",
+    },
     body: JSON.stringify({ handle, maxItems: body.maxItems }),
   });
   const data = await res.json();

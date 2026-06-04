@@ -199,15 +199,21 @@ export async function searchXByKeyword(
     let creatorId = creatorCache.get(handle);
     if (!creatorId) {
       creatorId =
-        (await upsertCreator(wsId, "x", handle, {
-          display_name: author?.name || handle,
-          avatar_url:
-            author?.profile_image_url?.replace("_normal", "_400x400") || null,
-          is_verified: !!author?.verified,
-          follower_count: author?.public_metrics?.followers_count ?? null,
-          last_synced_at: new Date().toISOString(),
-          sync_status: "idle",
-        })) || "";
+        (await upsertCreator(
+          wsId,
+          "x",
+          handle,
+          {
+            display_name: author?.name || handle,
+            avatar_url:
+              author?.profile_image_url?.replace("_normal", "_400x400") || null,
+            is_verified: !!author?.verified,
+            follower_count: author?.public_metrics?.followers_count ?? null,
+            last_synced_at: new Date().toISOString(),
+            sync_status: "idle",
+          },
+          { discovered: true }
+        )) || "";
       if (creatorId) creatorCache.set(handle, creatorId);
     }
     if (!creatorId) continue;

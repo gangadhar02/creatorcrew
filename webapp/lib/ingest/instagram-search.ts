@@ -80,12 +80,18 @@ export async function searchInstagramByKeyword(
     let creatorId = creatorCache.get(handle);
     if (!creatorId) {
       creatorId =
-        (await upsertCreator(wsId, "instagram", handle, {
-          display_name: item.user?.username || handle,
-          ig_user_id: igUserId,
-          last_synced_at: new Date().toISOString(),
-          sync_status: "idle",
-        })) || "";
+        (await upsertCreator(
+          wsId,
+          "instagram",
+          handle,
+          {
+            display_name: item.user?.username || handle,
+            ig_user_id: igUserId,
+            last_synced_at: new Date().toISOString(),
+            sync_status: "idle",
+          },
+          { discovered: true }
+        )) || "";
       if (creatorId) creatorCache.set(handle, creatorId);
     }
     if (!creatorId) continue;

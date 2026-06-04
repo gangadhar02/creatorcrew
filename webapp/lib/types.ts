@@ -159,6 +159,7 @@ export interface Creator {
   post_count: number | null;
   avatar_url: string | null;
   is_verified: boolean;
+  is_followed: boolean;
   ig_user_id: string | null;
   typical_reel_views: number | null;
   typical_post_likes: number | null;

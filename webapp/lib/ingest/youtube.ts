@@ -350,11 +350,17 @@ export async function searchYouTubeByKeyword(
     if (!creatorId) {
       const handle = channelId.toLowerCase();
       creatorId =
-        (await upsertCreator(wsId, "youtube", handle, {
-          display_name: item.snippet.channelTitle,
-          last_synced_at: new Date().toISOString(),
-          sync_status: "idle",
-        })) || "";
+        (await upsertCreator(
+          wsId,
+          "youtube",
+          handle,
+          {
+            display_name: item.snippet.channelTitle,
+            last_synced_at: new Date().toISOString(),
+            sync_status: "idle",
+          },
+          { discovered: true }
+        )) || "";
       if (creatorId) creatorCache.set(channelId, creatorId);
     }
     if (!creatorId) continue;

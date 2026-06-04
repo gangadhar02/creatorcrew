@@ -31,10 +31,19 @@ export async function upsertCreator(
     sync_status: "idle" | "syncing" | "failed";
     sync_error: string | null;
     raw_profile_json: unknown;
-  }>
+  }>,
+  /**
+   * `discovered: true` marks a creator that was auto-created as a byproduct of a
+   * Discover web search (NOT explicitly added by the user). Such creators are
+   * inserted with is_followed=false and kept out of the Creators list. Explicit
+   * callers (Add creator, profile analyze, saves) omit this so the creator is
+   * followed (and a previously-discovered creator gets promoted to followed).
+   */
+  opts?: { discovered?: boolean }
 ): Promise<string | null> {
   if (!handle) return null;
   const sb = getSupabase();
+  const discovered = opts?.discovered === true;
 
   const existing = await sb
     .from("creators")
@@ -47,8 +56,12 @@ export async function upsertCreator(
 
   let creatorId: string | null = null;
   if (existingId) {
-    if (patch && Object.keys(patch).length > 0) {
-      await sb.from("creators").update(patch).eq("id", existingId);
+    // Explicit adds promote a discovered creator to followed; a web-search
+    // pass must never downgrade an already-followed creator.
+    const update: Record<string, unknown> = { ...(patch || {}) };
+    if (!discovered) update.is_followed = true;
+    if (Object.keys(update).length > 0) {
+      await sb.from("creators").update(update).eq("id", existingId);
     }
     creatorId = existingId;
   } else {
@@ -58,6 +71,7 @@ export async function upsertCreator(
         workspace_id: workspaceId,
         platform,
         handle,
+        is_followed: !discovered,
         ...(patch || {}),
       })
       .select("id")
