@@ -5,6 +5,7 @@ import { igImg } from "@/lib/proxy-image";
 import PostCard from "@/components/PostCard";
 import MasonryGrid, { MasonryItem } from "@/components/MasonryGrid";
 import AddToListMenu from "@/components/AddToListMenu";
+import CreatorAnalyzingState from "@/components/CreatorAnalyzingState";
 import CreatorProfileToolbar, {
   CreatorProfileHeader,
 } from "@/components/CreatorProfileToolbar";
@@ -69,7 +70,34 @@ export default async function CreatorDetail({
     .eq("handle", handle.toLowerCase())
     .maybeSingle();
   const creator = creatorRow as Creator | null;
-  if (!creator) notFound();
+  if (!creator) {
+    // The creator row may not exist yet because adding an Instagram creator
+    // dispatches an async analysis (GitHub Actions in prod) that lands a minute
+    // or two later. If a job is still queued/running for this handle, show an
+    // auto-refreshing "Analyzing…" state instead of a 404.
+    const { data: jobRow } = await sb
+      .from("analyzer_jobs")
+      .select("id, status")
+      .eq("workspace_id", ws.workspaceId || "")
+      .eq("handle", handle.toLowerCase())
+      .in("status", ["queued", "running"])
+      .order("enqueued_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const job = jobRow as { id: string; status: "queued" | "running" } | null;
+    if (job) {
+      return (
+        <div className="space-y-5">
+          <CreatorAnalyzingState
+            jobId={job.id}
+            handle={handle.toLowerCase()}
+            initialStatus={job.status}
+          />
+        </div>
+      );
+    }
+    notFound();
+  }
 
   let postsQuery = sb
     .from("creator_posts")
