@@ -328,3 +328,111 @@ export async function analyzeCreatorPostsForChat(
     posts: out,
   };
 }
+
+/**
+ * Run REAL transcript / vision analysis on ONE specific post (by id), using the
+ * cookie-free Apify media fetch + Gemini multimodal pipeline (the same path
+ * analyzeCreatorPostsForChat uses per post). This is what a single-post chat
+ * ("run a vision analysis on this reel") should call: it analyzes the actual
+ * media of THIS post, not the creator's other posts and not a text-only pass.
+ *
+ * Results are cached onto creator_posts. Already-stored analyses are reused.
+ */
+export async function analyzeSinglePostForChat(
+  postId: string,
+  include: { transcript: boolean; vision: boolean }
+): Promise<{
+  transcript?: string;
+  vision?: string;
+  ran: string[];
+  errors: string[];
+}> {
+  const sb = getSupabase();
+  const { data } = await sb
+    .from("creator_posts")
+    .select("id, url, transcript, vision_analysis_md")
+    .eq("id", postId)
+    .maybeSingle();
+  const post = data as {
+    id: string;
+    url: string;
+    transcript: string | null;
+    vision_analysis_md: string | null;
+  } | null;
+  if (!post) return { ran: [], errors: ["post not found"] };
+
+  let transcript = post.transcript;
+  let vision = post.vision_analysis_md;
+  const errors: string[] = [];
+  const ran: string[] = [];
+
+  const needT = include.transcript && !transcript;
+  const needV = include.vision && !vision;
+  if (!needT && !needV) {
+    return {
+      transcript: transcript ?? undefined,
+      vision: vision ?? undefined,
+      ran: [],
+      errors,
+    };
+  }
+
+  if (!isApifyConfigured()) {
+    errors.push("Apify not configured (APIFY_API_TOKEN)");
+    return {
+      transcript: transcript ?? undefined,
+      vision: vision ?? undefined,
+      ran: [],
+      errors,
+    };
+  }
+
+  try {
+    if (!post.url) throw new Error("no post url to fetch media");
+    const fresh = await fetchPostByUrlApify(post.url);
+    if (!fresh?.item) throw new Error("Apify returned no media for post");
+    const item = fresh.item;
+    const [tRes, vRes] = await Promise.all([
+      needT
+        ? runGeminiOnMediaItem(item, TRANSCRIBE_PROMPT).then(
+            (r) => r.text,
+            (e) => {
+              errors.push(`transcript failed: ${String(e).slice(0, 120)}`);
+              return null;
+            }
+          )
+        : Promise.resolve(null),
+      needV
+        ? runGeminiOnMediaItem(item, POST_VISION_PROMPT).then(
+            (r) => r.text,
+            (e) => {
+              errors.push(`vision failed: ${String(e).slice(0, 120)}`);
+              return null;
+            }
+          )
+        : Promise.resolve(null),
+    ]);
+    if (tRes != null) {
+      transcript = tRes;
+      ran.push("transcript");
+      await sb.from("creator_posts").update({ transcript }).eq("id", postId);
+    }
+    if (vRes != null) {
+      vision = vRes;
+      ran.push("vision");
+      await sb
+        .from("creator_posts")
+        .update({ vision_analysis_md: vision })
+        .eq("id", postId);
+    }
+  } catch (e) {
+    errors.push(`media unavailable: ${String(e).slice(0, 120)}`);
+  }
+
+  return {
+    transcript: transcript ?? undefined,
+    vision: vision ?? undefined,
+    ran,
+    errors,
+  };
+}

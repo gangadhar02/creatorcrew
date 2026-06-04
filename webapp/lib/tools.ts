@@ -325,6 +325,38 @@ export const DATA_TOOL_NAMES = [
   "analyzeCreatorPosts",
 ] as const;
 
+// Tools that operate on a whole creator's account / library. They are wrong in a
+// single-post chat (context_kind="creator_post"): there the user is discussing
+// ONE specific post, so analyzeCreatorPosts would pull the creator's *other*
+// posts (the reported bug) and getCreatorData/creatorSnapshot would answer about
+// the account instead of the post. We drop these in single-post contexts; the
+// post's own transcript/vision is supplied via lib/chat-post-tools.ts instead.
+export const CREATOR_SCOPED_TOOL_NAMES = [
+  "getCreatorData",
+  "analyzeCreatorPosts",
+  "creatorSnapshot",
+] as const;
+
+/** Gemini auto-mode tool declarations, scoped to the chat context. */
+export function autoToolsGemini(opts?: { singlePost?: boolean }) {
+  if (opts?.singlePost) {
+    return AUTO_TOOLS_GEMINI.filter(
+      (t) => !CREATOR_SCOPED_TOOL_NAMES.includes(t.name as never)
+    );
+  }
+  return AUTO_TOOLS_GEMINI;
+}
+
+/** OpenRouter auto-mode tool declarations, scoped to the chat context. */
+export function autoToolsOpenRouter(opts?: { singlePost?: boolean }) {
+  if (opts?.singlePost) {
+    return AUTO_TOOLS_OPENROUTER.filter(
+      (t) => !CREATOR_SCOPED_TOOL_NAMES.includes(t.function.name as never)
+    );
+  }
+  return AUTO_TOOLS_OPENROUTER;
+}
+
 // OpenRouter tools (OpenAI JSON schema), offered in AUTO mode.
 export const AUTO_TOOLS_OPENROUTER = [
   // showBoostVariations JSON schema, inlined here so the route has one source.

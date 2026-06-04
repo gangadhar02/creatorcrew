@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
 import {
   Heart,
   MessageSquare,
@@ -19,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import SaveToBoardMenu from "./SaveToBoardMenu";
 import PostDetailModal from "./PostDetailModal";
+import { usePostChat } from "./post-chat";
 import { trackDwell, trackEvent } from "@/lib/event-tracker";
 
 function fmtNum(n: number | null | undefined): string {
@@ -60,10 +59,9 @@ export default function PostCard({
   surface?: string;
   position?: number;
 }) {
-  const router = useRouter();
   const [saveOpen, setSaveOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [chatBusy, setChatBusy] = useState(false);
+  const postChat = usePostChat();
   const cardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -100,26 +98,8 @@ export default function PostCard({
     setDetailOpen(true);
   }
 
-  async function openChat() {
-    if (chatBusy) return;
-    setChatBusy(true);
-    const t = toast.loading("Starting chat…");
-    try {
-      const res = await fetch("/api/boost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId: post.id, chat: true }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.chat_id) {
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-      toast.dismiss(t);
-      router.push(`/chats/${data.chat_id}`);
-    } catch (e) {
-      toast.error("Couldn't start chat", { id: t, description: String(e) });
-      setChatBusy(false);
-    }
+  function openChat() {
+    postChat.open(post.id, c.handle);
   }
 
   return (
@@ -190,8 +170,7 @@ export default function PostCard({
                 render={
                   <button
                     onClick={openChat}
-                    disabled={chatBusy}
-                    className="rounded-md bg-card/80 p-1.5 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-emerald-500/10 hover:text-emerald-500 disabled:opacity-50"
+                    className="rounded-md bg-card/80 p-1.5 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-emerald-500/10 hover:text-emerald-500"
                   >
                     <MessageCircle className="h-4 w-4" />
                   </button>

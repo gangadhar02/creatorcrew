@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
+import AppShell from "@/components/AppShell";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { getSupabase } from "@/lib/supabase";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -109,21 +109,18 @@ export default async function RootLayout({
       <body className="min-h-full">
         <TooltipProvider delay={200}>
           {authed ? (
-            <div className="flex min-h-screen">
-              <Sidebar
-                onboardingCompleted={ws.onboardingCompleted}
-                onboardingTotal={ws.onboardingTotal}
-                workspaceName={ws.workspaceName}
-                workspaceEmail={ws.workspaceEmail}
-                boards={boards}
-                recentChats={recentChats}
-              />
-              <main className="flex-1 min-w-0 overflow-x-hidden">
-                <div className="w-full px-6 py-8 lg:px-8 lg:py-10 animate-page-in">
-                  {children}
-                </div>
-              </main>
-            </div>
+            <AppShell
+              sidebar={{
+                onboardingCompleted: ws.onboardingCompleted,
+                onboardingTotal: ws.onboardingTotal,
+                workspaceName: ws.workspaceName,
+                workspaceEmail: ws.workspaceEmail,
+                boards,
+                recentChats,
+              }}
+            >
+              {children}
+            </AppShell>
           ) : (
             // Unauthenticated routes (/login, /auth/*) render bare — no
             // sidebar, no workspace shell. The proxy redirects every other

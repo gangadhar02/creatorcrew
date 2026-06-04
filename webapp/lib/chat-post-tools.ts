@@ -10,10 +10,7 @@
  * Server-only.
  */
 import { GoogleGenAI, FunctionCallingConfigMode } from "@google/genai";
-import { getSupabase } from "./supabase";
-import { runGeminiOnMedia, TRANSCRIBE_PROMPT } from "./gemini-media";
-import { mirrorTranscriptToCreatorPost } from "./dual-write";
-import { enrichPost } from "./enrich";
+import { analyzeSinglePostForChat } from "./creator-data";
 
 export type ChatContent = { role: "user" | "model"; parts: { text: string }[] };
 
@@ -84,69 +81,44 @@ export async function runChatPostTools(opts: {
   const willRun = Array.from(
     new Set(calls.map((c) => c.name || "").filter(Boolean))
   );
+  const names = new Set(calls.map((c) => c.name || ""));
+  const wantTranscript = allow.transcript && names.has("fetch_transcript");
+  const wantVision = allow.vision && names.has("run_vision_analysis");
+  if (!wantTranscript && !wantVision) return { note: "", ran: [] };
+
   onToolStart?.(willRun);
 
-  const sb = getSupabase();
-  const { data: post } = await sb
-    .from("creator_posts")
-    .select("platform_pk")
-    .eq("id", postId)
-    .maybeSingle();
-  const mediaPk = (post as { platform_pk?: string } | null)?.platform_pk;
+  // Run REAL media analysis on THIS post (cookie-free Apify fetch + Gemini
+  // multimodal), the same pipeline the creator analyzer uses per post. This
+  // analyzes the post's actual frames/audio, not a text-only pass.
+  const result = await analyzeSinglePostForChat(postId, {
+    transcript: wantTranscript,
+    vision: wantVision,
+  });
 
   const blocks: string[] = [];
-  const ran: string[] = [];
-  const seen = new Set<string>();
-
-  for (const c of calls) {
-    const name = c.name || "";
-    if (seen.has(name)) continue;
-    seen.add(name);
-
-    if (name === "fetch_transcript" && allow.transcript && mediaPk) {
-      try {
-        const { text } = await runGeminiOnMedia(mediaPk, TRANSCRIBE_PROMPT, {
-          model: "gemini-2.5-flash",
-        });
-        await sb.from("creator_posts").update({ transcript: text }).eq("id", postId);
-        await mirrorTranscriptToCreatorPost(mediaPk, text);
-        blocks.push(`## Transcript (fetched just now)\n${text}`);
-        ran.push("transcript");
-      } catch (e) {
-        blocks.push(
-          `## Transcript\n(Couldn't fetch the transcript: ${String(e).slice(0, 160)})`
-        );
-      }
+  if (wantTranscript) {
+    if (result.transcript) {
+      blocks.push(`## Transcript (fetched just now)\n${result.transcript}`);
+    } else {
+      blocks.push(
+        `## Transcript\n(Couldn't fetch the transcript${
+          result.errors.length ? `: ${result.errors.join("; ")}` : ""
+        })`
+      );
     }
-
-    if (name === "run_vision_analysis" && allow.vision) {
-      try {
-        await enrichPost(postId, { force: false });
-        const { data: enriched } = await sb
-          .from("creator_posts")
-          .select("ai_description, ai_overview, vision_analysis_md")
-          .eq("id", postId)
-          .maybeSingle();
-        const e = (enriched || {}) as {
-          ai_description?: string | null;
-          ai_overview?: unknown;
-          vision_analysis_md?: string | null;
-        };
-        const parts: string[] = [];
-        if (e.ai_description) parts.push(e.ai_description);
-        if (e.vision_analysis_md) parts.push(e.vision_analysis_md);
-        else if (e.ai_overview) parts.push(JSON.stringify(e.ai_overview));
-        blocks.push(
-          `## Visual analysis (fetched just now)\n${parts.join("\n\n") || "(no analysis produced)"}`
-        );
-        ran.push("vision");
-      } catch (e) {
-        blocks.push(
-          `## Visual analysis\n(Couldn't run analysis: ${String(e).slice(0, 160)})`
-        );
-      }
+  }
+  if (wantVision) {
+    if (result.vision) {
+      blocks.push(`## Visual analysis (fetched just now)\n${result.vision}`);
+    } else {
+      blocks.push(
+        `## Visual analysis\n(Couldn't run analysis${
+          result.errors.length ? `: ${result.errors.join("; ")}` : ""
+        })`
+      );
     }
   }
 
-  return { note: blocks.join("\n\n"), ran };
+  return { note: blocks.join("\n\n"), ran: result.ran };
 }

@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
-import { toast } from "sonner";
 import { MessageCircle, Bookmark } from "lucide-react";
 import MarkdownView from "./MarkdownView";
 import SaveToBoardMenu from "./SaveToBoardMenu";
+import { usePostChat } from "./post-chat";
 import { igImg } from "@/lib/proxy-image";
 
 export type ProfilePost = {
@@ -88,31 +87,13 @@ function ProfileCard({
   post: ProfilePost;
   onOpen: () => void;
 }) {
-  const router = useRouter();
   const [saveOpen, setSaveOpen] = useState(false);
-  const [chatBusy, setChatBusy] = useState(false);
+  const postChat = usePostChat();
   const cpId = post.creator_post_id ?? null;
 
-  async function openChat() {
-    if (!cpId || chatBusy) return;
-    setChatBusy(true);
-    const t = toast.loading("Starting chat…");
-    try {
-      const res = await fetch("/api/boost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId: cpId, chat: true }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.chat_id) {
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-      toast.dismiss(t);
-      router.push(`/chats/${data.chat_id}`);
-    } catch (e) {
-      toast.error("Couldn't start chat", { id: t, description: String(e) });
-      setChatBusy(false);
-    }
+  function openChat() {
+    if (!cpId) return;
+    postChat.open(cpId, null);
   }
 
   return (
@@ -172,9 +153,8 @@ function ProfileCard({
           <div className="pointer-events-none flex items-center gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
             <button
               onClick={openChat}
-              disabled={chatBusy}
               title="Chat about this post"
-              className="rounded-md bg-[var(--card)]/80 p-1.5 text-[var(--muted-foreground)] backdrop-blur-sm transition-colors hover:text-emerald-500 disabled:opacity-50"
+              className="rounded-md bg-[var(--card)]/80 p-1.5 text-[var(--muted-foreground)] backdrop-blur-sm transition-colors hover:text-emerald-500"
             >
               <MessageCircle className="h-4 w-4" />
             </button>

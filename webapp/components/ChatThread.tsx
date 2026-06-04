@@ -51,9 +51,13 @@ type Mention = { kind: "post" | "creator" | "list"; id: string; label: string };
 export default function ChatThread({
   chat,
   initialMessages,
+  embedded = false,
 }: {
   chat: Chat;
   initialMessages: ChatMessage[];
+  /** Render inside a dialog/popup: fill the parent height instead of the full
+   *  viewport, and drop the page-level negative margins + title bar. */
+  embedded?: boolean;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -296,13 +300,19 @@ export default function ChatThread({
 
   return (
     <div
-      className="-mx-6 -my-8 flex flex-col lg:-mx-8 lg:-my-10"
-      style={{ height: "100svh" }}
+      className={
+        embedded
+          ? "flex h-full flex-col"
+          : "-mx-6 -my-8 flex flex-col lg:-mx-8 lg:-my-10"
+      }
+      style={embedded ? undefined : { height: "100svh" }}
     >
-      {/* Slim title bar */}
-      <div className="flex h-10 shrink-0 items-center border-b border-border/50 px-6">
-        <ChatTitlePicker currentChatId={chat.id} title={title} />
-      </div>
+      {/* Slim title bar — the dialog provides its own header when embedded */}
+      {!embedded && (
+        <div className="flex h-10 shrink-0 items-center border-b border-border/50 px-6">
+          <ChatTitlePicker currentChatId={chat.id} title={title} />
+        </div>
+      )}
 
       {/* Conversation — auto-sticks to bottom while streaming */}
       <Conversation className="flex-1">

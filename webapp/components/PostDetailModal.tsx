@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Bookmark,
   ExternalLink,
@@ -20,6 +19,7 @@ import type { PostWithCreator } from "@/lib/discover-types";
 import type { AiOverview, AiOverviewBlock } from "@/lib/types-enrichment";
 import MarkdownView from "./MarkdownView";
 import SaveToBoardMenu from "./SaveToBoardMenu";
+import { usePostChat } from "./post-chat";
 
 function fmtNum(n: number | null | undefined): string {
   if (!n) return "0";
@@ -37,8 +37,7 @@ export default function PostDetailModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const router = useRouter();
-  const [chatBusy, setChatBusy] = useState(false);
+  const postChat = usePostChat();
   const [saveOpen, setSaveOpen] = useState(false);
   const [tab, setTab] = useState<"caption" | "transcript" | "vision">("caption");
   const [enrichment, setEnrichment] = useState<AiOverview | null>(
@@ -96,26 +95,10 @@ export default function PostDetailModal({
     setEnrichment(normalizeAiOverview(post.ai_overview));
   }, [post.id, post.ai_overview]);
 
-  async function openChat() {
-    if (chatBusy) return;
-    setChatBusy(true);
-    const t = toast.loading("Starting chat…");
-    try {
-      const res = await fetch("/api/boost", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId: post.id, chat: true }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.chat_id) {
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-      toast.dismiss(t);
-      router.push(`/chats/${data.chat_id}`);
-    } catch (e) {
-      toast.error("Couldn't start chat", { id: t, description: String(e) });
-      setChatBusy(false);
-    }
+  function openChat() {
+    // Close this modal so the docked split-screen chat panel is visible.
+    onClose();
+    postChat.open(post.id, post.creator?.handle);
   }
 
   async function copyText(text: string) {
@@ -171,8 +154,7 @@ export default function PostDetailModal({
                 render={
                   <button
                     onClick={openChat}
-                    disabled={chatBusy}
-                    className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-500 disabled:opacity-50"
+                    className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-500"
                   >
                     <MessageCircle className="h-4 w-4" />
                   </button>

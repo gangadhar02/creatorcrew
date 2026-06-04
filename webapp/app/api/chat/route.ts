@@ -23,8 +23,8 @@ import { buildSystemPrompt } from "@/lib/chat-context";
 import { runChatPostTools, type ChatContent } from "@/lib/chat-post-tools";
 import {
   SHOW_BOOST_VARIATIONS_TOOL,
-  AUTO_TOOLS_GEMINI,
-  AUTO_TOOLS_OPENROUTER,
+  autoToolsGemini,
+  autoToolsOpenRouter,
   DATA_TOOL_NAMES,
 } from "@/lib/tools";
 import { streamOpenRouter, type ORMessage } from "@/lib/openrouter";
@@ -156,19 +156,35 @@ export async function POST(request: NextRequest) {
   // Build history + system prompt
   const { data: history } = await sb
     .from("chat_messages")
-    .select("role, content_md")
+    .select("role, content_md, tool_calls")
     .eq("chat_id", chat.id)
     .order("created_at", { ascending: true });
   // Sanitize history: strip any legacy ```tool:...``` fenced blocks from prior
   // assistant turns. Feeding those back taught the model to "type out" tool
   // calls as text instead of invoking the function. Cards rehydrate from the
   // tool_calls column, so the model never needs to see this format.
-  const msgs = ((history || []) as { role: string; content_md: string }[]).map(
-    (m) =>
-      m.role === "assistant"
-        ? { ...m, content_md: stripToolFences(m.content_md || "") }
-        : m
-  );
+  //
+  // Also fold a SHORT textual marker for any cards a prior assistant turn
+  // rendered (the cards live only in tool_calls, so without this the model has
+  // no memory it already produced them and re-runs the analysis on a follow-up
+  // like "thanks"). We summarize, never echo the raw tool JSON.
+  const msgs = (
+    (history || []) as {
+      role: string;
+      content_md: string;
+      tool_calls: { name: string; args: unknown }[] | null;
+    }[]
+  ).map((m) => {
+    if (m.role !== "assistant") {
+      return { role: m.role, content_md: m.content_md };
+    }
+    let text = stripToolFences(m.content_md || "");
+    if (m.tool_calls && m.tool_calls.length > 0) {
+      const summary = summarizeToolCalls(m.tool_calls);
+      if (summary) text = text ? `${text}\n\n${summary}` : summary;
+    }
+    return { role: m.role, content_md: text };
+  });
   const systemPrompt = await buildSystemPrompt(chat);
 
   // Append mentions context to the latest user message
@@ -210,6 +226,13 @@ export async function POST(request: NextRequest) {
   // System prompt: use override if supplied, else the default builder.
   const effectiveSystemPrompt = body.system_prompt?.trim() || systemPrompt;
 
+  // Single-post chats are about ONE post: drop the creator-wide research tools
+  // (getCreatorData/analyzeCreatorPosts/creatorSnapshot) so "analyze this" /
+  // "run a vision analysis" target THIS post (handled by the post tools below)
+  // instead of the creator's other posts.
+  const isSinglePost =
+    chat.context_kind === "creator_post" && !!chat.context_id;
+
   // Tool config — currently only one tool exists (showBoostVariations).
   type ToolConfigShape = {
     tools: { functionDeclarations: object[] }[];
@@ -237,7 +260,9 @@ export async function POST(request: NextRequest) {
     // Note: Gemini rejects allowedFunctionNames unless mode is ANY, so in AUTO
     // mode we only declare the tools and let the model pick freely.
     toolConfig = {
-      tools: [{ functionDeclarations: AUTO_TOOLS_GEMINI }],
+      tools: [
+        { functionDeclarations: autoToolsGemini({ singlePost: isSinglePost }) },
+      ],
       toolConfig: {
         functionCallingConfig: {
           mode: FunctionCallingConfigMode.AUTO,
@@ -332,11 +357,11 @@ export async function POST(request: NextRequest) {
           }));
           const orTools =
             body.tool === "showBoostVariations"
-              ? AUTO_TOOLS_OPENROUTER.filter(
+              ? autoToolsOpenRouter().filter(
                   (t) => t.function.name === "showBoostVariations"
                 )
               : !body.tool
-                ? AUTO_TOOLS_OPENROUTER
+                ? autoToolsOpenRouter({ singlePost: isSinglePost })
                 : undefined;
           for await (const e of streamOpenRouter({
             apiKey: openrouterApiKey,
@@ -558,6 +583,43 @@ export async function POST(request: NextRequest) {
       "X-Accel-Buffering": "no",
     },
   });
+}
+
+/**
+ * Compact, human-readable record of cards a prior assistant turn already
+ * rendered, so the model has continuity and doesn't regenerate them on a
+ * follow-up. Deliberately NOT the raw tool JSON (that would teach the model to
+ * imitate tool calls as text).
+ */
+function summarizeToolCalls(
+  calls: { name: string; args: unknown }[]
+): string {
+  const parts = calls
+    .map((c) => {
+      const a = (c.args || {}) as Record<string, unknown>;
+      switch (c.name) {
+        case "draftDocument":
+          return `[You already rendered a ${
+            (a.kind as string) || "document"
+          } card titled "${(a.title as string) || "Untitled"}" earlier in this chat.]`;
+        case "creatorSnapshot":
+          return `[You already rendered a metrics snapshot card for @${
+            (a.handle as string) || "creator"
+          } earlier in this chat.]`;
+        case "showSocialPosts":
+          return `[You already showed a post feed${
+            Array.isArray(a.postIds) ? ` (${a.postIds.length} posts)` : ""
+          } earlier in this chat.]`;
+        case "showBoostVariations":
+          return `[You already rendered${
+            Array.isArray(a.variations) ? ` ${a.variations.length}` : ""
+          } post variations earlier in this chat.]`;
+        default:
+          return `[You already rendered a ${c.name} card earlier in this chat.]`;
+      }
+    })
+    .filter(Boolean);
+  return parts.join(" ");
 }
 
 async function buildMentionsSection(
