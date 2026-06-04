@@ -81,7 +81,7 @@ export default function PostDetailModal({
     setVideoFailed(false);
     if (!open) return;
     let cancelled = false;
-    fetch(`/api/posts/${post.id}/media`)
+    fetch(`/api/posts/${post.id}/video`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { videoUrl?: string | null } | null) => {
         if (!cancelled && d?.videoUrl) setVideoUrl(d.videoUrl);
