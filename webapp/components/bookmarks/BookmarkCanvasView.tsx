@@ -2,7 +2,6 @@
 
 import { useCallback } from "react";
 import MasonryGrid from "@/components/board/MasonryGrid";
-import { COLUMN_WIDTH } from "@/components/canvas/types";
 import BookmarkCard from "@/components/BookmarkCard";
 import type { BookmarkItem } from "@/lib/types-bookmarks";
 
@@ -44,7 +43,7 @@ export default function BookmarkCanvasView({
         items={items}
         estimateHeight={estimateHeight}
         renderItem={(item) => (
-          <div data-card style={{ width: COLUMN_WIDTH }}>
+          <div data-card className="w-full">
             <BookmarkCard
               item={item}
               onUpdate={(patch) => onUpdate(item.id, patch)}

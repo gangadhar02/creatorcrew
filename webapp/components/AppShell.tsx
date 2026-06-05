@@ -90,7 +90,7 @@ export default function AppShell({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: "110%", opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed right-2 top-2 z-40 h-[calc(100svh-1rem)] overflow-hidden rounded-2xl border border-border/70 bg-background shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]"
+            className="fixed right-2 top-2 z-40 h-[calc(100svh-1rem)] overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]"
             style={{ width: PANEL_WIDTH }}
           >
             <ChatPanel target={target} onClose={close} />

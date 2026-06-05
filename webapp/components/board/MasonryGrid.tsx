@@ -29,7 +29,7 @@ export default function MasonryGrid<T extends Item>({
   className,
 }: {
   items: T[];
-  renderItem: (item: T, opts: { dragging: boolean }) => React.ReactNode;
+  renderItem: (item: T, opts: { dragging: boolean; width: number }) => React.ReactNode;
   onReorder?: (orderedIds: string[]) => void;
   estimateHeight?: (item: T) => number;
   className?: string;
@@ -94,12 +94,18 @@ export default function MasonryGrid<T extends Item>({
     };
   }, []);
 
+  // COLUMN_WIDTH is the *minimum* card width: fit as many columns as possible,
+  // then stretch each column so the row fills the full container width (flush to
+  // both edges, like Eden) instead of leaving wasted margins on the sides.
   const columns = Math.max(
     1,
     Math.floor((containerW + CARD_GAP) / (COLUMN_WIDTH + CARD_GAP))
   );
-  const usedW = columns * COLUMN_WIDTH + (columns - 1) * CARD_GAP;
-  const originX = Math.max(0, (containerW - usedW) / 2);
+  const colWidth =
+    containerW > 0
+      ? Math.floor((containerW - (columns - 1) * CARD_GAP) / columns)
+      : COLUMN_WIDTH;
+  const originX = 0;
 
   const heightOf = useCallback(
     (id: string) =>
@@ -116,7 +122,7 @@ export default function MasonryGrid<T extends Item>({
       for (const id of ids) {
         let c = 0;
         for (let i = 1; i < columns; i++) if (colH[i] < colH[c]) c = i;
-        const x = originX + c * (COLUMN_WIDTH + CARD_GAP);
+        const x = originX + c * (colWidth + CARD_GAP);
         const y = colH[c];
         const h = heightOf(id);
         pos[id] = { x, y, h };
@@ -125,7 +131,7 @@ export default function MasonryGrid<T extends Item>({
       return { pos, totalH: Math.max(0, ...colH) };
     },
     // heightsVersion forces a repack when a measured height changes
-    [columns, originX, heightOf, heightsVersion]
+    [columns, colWidth, originX, heightOf, heightsVersion]
   );
 
   const { pos: layout, totalH } = useMemo(
@@ -166,7 +172,7 @@ export default function MasonryGrid<T extends Item>({
       let after = false;
       for (let i = 0; i < others.length; i++) {
         const p = pos[others[i]];
-        const cx = p.x + COLUMN_WIDTH / 2;
+        const cx = p.x + colWidth / 2;
         const cy = p.y + p.h / 2;
         const d = Math.hypot(point.x - cx, point.y - cy);
         if (d < bestD) {
@@ -309,7 +315,7 @@ export default function MasonryGrid<T extends Item>({
                 position: "absolute",
                 left: 0,
                 top: 0,
-                width: COLUMN_WIDTH,
+                width: colWidth,
                 cursor: isDrag ? "grabbing" : "grab",
                 touchAction: "none",
               }}
@@ -322,7 +328,7 @@ export default function MasonryGrid<T extends Item>({
                   }
                 }}
               >
-                {renderItem(item, { dragging: isDrag })}
+                {renderItem(item, { dragging: isDrag, width: colWidth })}
               </Measured>
             </motion.div>
           );

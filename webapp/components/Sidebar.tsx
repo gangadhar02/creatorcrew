@@ -9,7 +9,6 @@ import {
   Home,
   Compass,
   MessageCircle,
-  LayoutGrid,
   MessageSquare,
   RefreshCw,
   Search,
@@ -30,6 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import CommandPalette from "./CommandPalette";
 import ChatRow from "./ChatRow";
+import BoardRow from "./BoardRow";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import { usePostChat } from "./post-chat";
 import {
@@ -84,10 +84,15 @@ export default function Sidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [todayChats, setTodayChats] = useState(recentChats);
+  const [boardList, setBoardList] = useState(boards);
 
   useEffect(() => {
     setTodayChats(recentChats);
   }, [recentChats]);
+
+  useEffect(() => {
+    setBoardList(boards);
+  }, [boards]);
 
   // Reflect the theme the pre-hydration script already applied to <html>.
   // Read after mount so SSR and first client render agree (no hydration warning).
@@ -259,29 +264,28 @@ export default function Sidebar({
         <div className={cn("sidebar-block pt-3 pb-2", collapsed ? "" : "px-3")}>
           <SectionLabel collapsed={collapsed}>Boards</SectionLabel>
           <div className="space-y-0.5">
-            {boards.length === 0 ? (
+            {boardList.length === 0 ? (
               !collapsed && (
                 <div className="px-3 py-1.5 text-xs text-muted-foreground italic">
                   No boards yet
                 </div>
               )
             ) : (
-              boards.map((b) => (
-                <NavRow
+              boardList.map((b) => (
+                <BoardRow
                   key={b.id}
-                  href={`/boards/${b.id}`}
+                  id={b.id}
+                  name={b.name}
                   active={pathname === `/boards/${b.id}`}
                   collapsed={collapsed}
-                  icon={
-                    collapsed ? (
-                      <span className="grid h-4 w-4 place-items-center rounded-sm bg-muted text-[10px] font-semibold leading-none">
-                        {b.name.slice(0, 1).toUpperCase()}
-                      </span>
-                    ) : (
-                      <LayoutGrid className="h-4 w-4 shrink-0" />
+                  onRenamed={(rid, n) =>
+                    setBoardList((prev) =>
+                      prev.map((x) => (x.id === rid ? { ...x, name: n } : x))
                     )
                   }
-                  label={b.name}
+                  onDeleted={(did) =>
+                    setBoardList((prev) => prev.filter((x) => x.id !== did))
+                  }
                 />
               ))
             )}

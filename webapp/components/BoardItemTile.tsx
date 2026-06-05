@@ -6,6 +6,7 @@ import { X, Heart, MessageCircle, Eye } from "lucide-react";
 import { igImg } from "@/lib/proxy-image";
 import type { ExpandedBoardItem } from "@/app/boards/[id]/page";
 import { useDocumentOverlay } from "@/components/canvas/DocumentOverlay";
+import { usePostOverlay } from "@/components/canvas/PostOverlay";
 
 export default function BoardItemTile({
   item,
@@ -15,7 +16,7 @@ export default function BoardItemTile({
   onDelete: (itemId: string) => void;
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] transition-colors hover:border-[var(--muted-foreground)]/30">
+    <div className="group relative overflow-hidden rounded-2xl bg-[var(--card)] ring-1 ring-black/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-14px_rgba(0,0,0,0.2)] transition-shadow duration-200 hover:shadow-[0_2px_6px_rgba(0,0,0,0.06),0_18px_40px_-18px_rgba(0,0,0,0.3)] dark:ring-white/[0.06] dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_10px_28px_-14px_rgba(0,0,0,0.7)]">
       <button
         onClick={(e) => {
           e.preventDefault();
@@ -69,12 +70,23 @@ function LoadingTile() {
 }
 
 function PostTile({ post }: { post: NonNullable<ExpandedBoardItem["creator_post"]> }) {
+  const postOverlay = usePostOverlay();
   return (
-    <a
-      href={post.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block"
+    <button
+      type="button"
+      onClick={(e) => {
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        postOverlay.openPost({
+          post,
+          rect: {
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+          },
+        });
+      }}
+      className="block w-full text-left"
     >
       {post.thumbnail_url && (
         <div className="aspect-[4/5] bg-zinc-200 dark:bg-zinc-800">
@@ -111,7 +123,7 @@ function PostTile({ post }: { post: NonNullable<ExpandedBoardItem["creator_post"
           </div>
         )}
       </div>
-    </a>
+    </button>
   );
 }
 
@@ -210,7 +222,7 @@ function DocumentTile({
             rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
           });
         }}
-        className="block min-h-[110px] w-full p-4 text-left transition-colors hover:bg-[var(--border)]/10"
+        className="flex aspect-[210/297] w-full flex-col overflow-hidden p-4 text-left transition-colors hover:bg-[var(--border)]/10"
       >
         {inner}
       </button>
@@ -220,7 +232,7 @@ function DocumentTile({
   return (
     <Link
       href={`/documents/${documentId}`}
-      className="block min-h-[110px] p-4 transition-colors hover:bg-[var(--border)]/10"
+      className="flex aspect-[210/297] w-full flex-col overflow-hidden p-4 transition-colors hover:bg-[var(--border)]/10"
     >
       {inner}
     </Link>
