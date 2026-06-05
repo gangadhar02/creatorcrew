@@ -211,19 +211,31 @@ function ReelCard({ post, onOpen }: { post: Post; onOpen: (e: React.MouseEvent) 
   );
 }
 
-/** All image media_url_https from the stored tweet JSON (falls back to thumb). */
+/** Image URLs from the stored tweet JSON — handles both FxTwitter
+ *  (media.photos / media.all) and syndication (mediaDetails); falls back to
+ *  the stored thumbnail. */
 function tweetMedia(post: Post): string[] {
-  const raw = (post as unknown as { raw_json?: { mediaDetails?: { media_url_https?: string; type?: string }[] } }).raw_json;
-  const urls = (raw?.mediaDetails || [])
-    .map((m) => m.media_url_https)
-    .filter((u): u is string => !!u);
+  const raw = (post as unknown as {
+    raw_json?: {
+      media?: { photos?: { url?: string }[]; all?: { type?: string; url?: string; thumbnail_url?: string }[] };
+      mediaDetails?: { media_url_https?: string }[];
+    };
+  }).raw_json;
+  // FxTwitter
+  const fxPhotos = (raw?.media?.photos || []).map((p) => p.url);
+  const fxAll = (raw?.media?.all || []).map((m) => (m.type === "photo" ? m.url : m.thumbnail_url));
+  // Syndication
+  const syn = (raw?.mediaDetails || []).map((m) => m.media_url_https);
+  const urls = [...fxPhotos, ...(fxPhotos.length ? [] : fxAll), ...syn].filter(
+    (u): u is string => !!u
+  );
   if (urls.length) return urls;
   return post.thumbnail_url ? [post.thumbnail_url] : [];
 }
 
 function retweetCount(post: Post): number {
-  const raw = (post as unknown as { raw_json?: { retweet_count?: number } }).raw_json;
-  return raw?.retweet_count ?? 0;
+  const raw = (post as unknown as { raw_json?: { retweets?: number; retweet_count?: number } }).raw_json;
+  return raw?.retweets ?? raw?.retweet_count ?? 0;
 }
 
 function relTime(iso: string): string {
