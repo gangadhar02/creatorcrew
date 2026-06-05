@@ -18,6 +18,12 @@ export function fmtNum(n: number | null | undefined): string {
   return String(n);
 }
 
+/** Retweet count from the stored tweet JSON (FxTwitter or syndication). */
+function retweetCount(post: PostWithCreator): number {
+  const raw = (post as unknown as { raw_json?: { retweets?: number; retweet_count?: number } }).raw_json;
+  return raw?.retweets ?? raw?.retweet_count ?? 0;
+}
+
 /**
  * The scrollable detail of a post: inline media (video / IG embed / thumbnail),
  * stat cards, and Caption / Transcript / Vision tabs. Shared by the centered
@@ -56,6 +62,7 @@ export default function PostDetailBody({
     post.platform === "instagram" && igCode
       ? `https://www.instagram.com/${isReel ? "reel" : "p"}/${igCode}/embed`
       : null;
+  const isX = post.platform === "x";
 
   useEffect(() => {
     fetch(`/api/post-seen/${post.id}`, { method: "POST" }).catch(() => {});
@@ -146,22 +153,26 @@ export default function PostDetailBody({
       </div>
 
       <div className="mx-auto w-full max-w-[640px] space-y-4 p-4">
-        {/* Stat cards */}
+        {/* Stat cards — X shows "shares" (retweets); others show "vs views". */}
         <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-5">
-          <Stat
-            label="vs views"
-            value={
-              post.outlier_multiplier
-                ? `${post.outlier_multiplier.toFixed(2)}×`
-                : "–"
-            }
-            highlight={
-              !!post.outlier_multiplier && post.outlier_multiplier >= 2
-            }
-          />
           <Stat label="views" value={fmtNum(post.view_count)} />
           <Stat label="likes" value={fmtNum(post.like_count)} />
           <Stat label="comments" value={fmtNum(post.comment_count)} />
+          {isX ? (
+            <Stat label="shares" value={fmtNum(retweetCount(post))} />
+          ) : (
+            <Stat
+              label="vs views"
+              value={
+                post.outlier_multiplier
+                  ? `${post.outlier_multiplier.toFixed(2)}×`
+                  : "–"
+              }
+              highlight={
+                !!post.outlier_multiplier && post.outlier_multiplier >= 2
+              }
+            />
+          )}
           <Stat
             label="eng. rate"
             value={
@@ -172,6 +183,30 @@ export default function PostDetailBody({
           />
         </div>
 
+        {/* X posts: a single labelled TWEET block (no transcript/vision tabs). */}
+        {isX ? (
+          <div className="rounded-md border bg-background p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                Tweet
+              </span>
+              <button
+                onClick={() => copyText(post.title_or_caption || "")}
+                className="inline-flex items-center gap-1 rounded border bg-card px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="h-3 w-3" /> Copy
+              </button>
+            </div>
+            {post.title_or_caption ? (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                {post.title_or_caption}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">(no text)</p>
+            )}
+          </div>
+        ) : (
+        <>
         {/* Tabs */}
         <div className="flex items-center gap-2 border-b">
           <TabBtn
@@ -249,6 +284,8 @@ export default function PostDetailBody({
               </span>
             </div>
           ))}
+        </>
+        )}
 
         {post.published_at && (
           <div className="text-xs text-muted-foreground">
