@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy } from "lucide-react";
+import { Copy, Eye, Heart, MessageCircle, Repeat2, Zap, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,46 @@ export function fmtNum(n: number | null | undefined): string {
 function retweetCount(post: PostWithCreator): number {
   const raw = (post as unknown as { raw_json?: { retweets?: number; retweet_count?: number } }).raw_json;
   return raw?.retweets ?? raw?.retweet_count ?? 0;
+}
+
+function fmtDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** One inline metric in the X stats pill: icon · value · label. */
+function PillStat({
+  icon: Icon,
+  value,
+  label,
+  accent,
+}: {
+  icon: typeof Eye;
+  value: string;
+  label: string;
+  accent?: boolean;
+}) {
+  return (
+    <span className="flex items-center gap-1.5 text-xs">
+      <Icon className={cn("h-3.5 w-3.5", accent ? "text-amber-500" : "text-muted-foreground")} />
+      <span
+        className={cn(
+          "font-semibold tabular-nums",
+          accent ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+        )}
+      >
+        {value}
+      </span>
+      <span className="text-muted-foreground">{label}</span>
+    </span>
+  );
 }
 
 /**
@@ -63,6 +103,17 @@ export default function PostDetailBody({
       ? `https://www.instagram.com/${isReel ? "reel" : "p"}/${igCode}/embed`
       : null;
   const isX = post.platform === "x";
+  // Engagement rate: use the stored value, else derive it (X tweets aren't
+  // enriched with one) — (likes + comments + shares) / views.
+  const engRate =
+    post.engagement_rate ??
+    (post.view_count > 0
+      ? Math.round(
+          ((post.like_count + post.comment_count + retweetCount(post)) /
+            post.view_count) *
+            10000
+        ) / 100
+      : null);
 
   useEffect(() => {
     fetch(`/api/post-seen/${post.id}`, { method: "POST" }).catch(() => {});
@@ -121,8 +172,8 @@ export default function PostDetailBody({
 
   return (
     <>
-      {/* Media */}
-      <div className={cn("flex items-center justify-center p-4", mediaBg)}>
+      {/* Media — X is centered on a soft grey field (constrained), like Eden. */}
+      <div className={cn("flex items-center justify-center p-4", isX ? "bg-muted/30" : mediaBg)}>
         {videoUrl && !videoFailed ? (
           // eslint-disable-next-line jsx-a11y/media-has-caption
           <video
@@ -148,40 +199,86 @@ export default function PostDetailBody({
           />
         ) : thumbnail ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumbnail} alt="" className="max-h-[55vh] w-auto rounded-lg" />
+          <img
+            src={thumbnail}
+            alt=""
+            className={cn("w-auto rounded-lg", isX ? "max-h-[60vh] max-w-[540px]" : "max-h-[55vh]")}
+          />
         ) : null}
       </div>
 
       <div className="mx-auto w-full max-w-[640px] space-y-4 p-4">
-        {/* Stat cards — X shows "shares" (retweets); others show "vs views". */}
-        <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-5">
-          <Stat label="views" value={fmtNum(post.view_count)} />
-          <Stat label="likes" value={fmtNum(post.like_count)} />
-          <Stat label="comments" value={fmtNum(post.comment_count)} />
-          {isX ? (
-            <Stat label="shares" value={fmtNum(retweetCount(post))} />
-          ) : (
+        {isX ? (
+          <>
+            {/* Creator card — avatar · name · @handle · date */}
+            <div className="flex items-center gap-3">
+              {post.creator?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={mediaImg(post.creator.avatar_url, "x")}
+                  alt=""
+                  className="h-10 w-10 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-10 w-10 shrink-0 rounded-full bg-muted" />
+              )}
+              <div className="min-w-0">
+                <div className="flex items-center gap-1 text-sm font-semibold">
+                  <span className="truncate">
+                    {post.creator?.display_name || post.creator?.handle}
+                  </span>
+                  {post.creator?.is_verified && (
+                    <BadgeCheck className="h-4 w-4 shrink-0 text-sky-500" />
+                  )}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  @{post.creator?.handle}
+                  {post.published_at ? ` · ${fmtDateTime(post.published_at)}` : ""}
+                </div>
+              </div>
+            </div>
+
+            {/* Pill stats bar */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl border bg-card px-4 py-2.5">
+              {post.outlier_multiplier ? (
+                <PillStat
+                  icon={Zap}
+                  value={`${post.outlier_multiplier.toFixed(2)}×`}
+                  label="vs likes"
+                  accent
+                />
+              ) : null}
+              <PillStat icon={Eye} value={fmtNum(post.view_count)} label="views" />
+              <PillStat icon={Heart} value={fmtNum(post.like_count)} label="likes" />
+              <PillStat icon={MessageCircle} value={fmtNum(post.comment_count)} label="comments" />
+              <PillStat icon={Repeat2} value={fmtNum(retweetCount(post))} label="shares" />
+              <PillStat
+                icon={Heart}
+                value={engRate != null ? `${engRate.toFixed(2)}%` : "–"}
+                label="eng. rate"
+              />
+            </div>
+
+            <div className="border-t border-border" />
+          </>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-5">
             <Stat
               label="vs views"
               value={
-                post.outlier_multiplier
-                  ? `${post.outlier_multiplier.toFixed(2)}×`
-                  : "–"
+                post.outlier_multiplier ? `${post.outlier_multiplier.toFixed(2)}×` : "–"
               }
-              highlight={
-                !!post.outlier_multiplier && post.outlier_multiplier >= 2
-              }
+              highlight={!!post.outlier_multiplier && post.outlier_multiplier >= 2}
             />
-          )}
-          <Stat
-            label="eng. rate"
-            value={
-              post.engagement_rate
-                ? `${post.engagement_rate.toFixed(2)}%`
-                : "–"
-            }
-          />
-        </div>
+            <Stat label="views" value={fmtNum(post.view_count)} />
+            <Stat label="likes" value={fmtNum(post.like_count)} />
+            <Stat label="comments" value={fmtNum(post.comment_count)} />
+            <Stat
+              label="eng. rate"
+              value={post.engagement_rate ? `${post.engagement_rate.toFixed(2)}%` : "–"}
+            />
+          </div>
+        )}
 
         {/* X posts: a single labelled TWEET block (no transcript/vision tabs). */}
         {isX ? (
@@ -287,7 +384,7 @@ export default function PostDetailBody({
         </>
         )}
 
-        {post.published_at && (
+        {!isX && post.published_at && (
           <div className="text-xs text-muted-foreground">
             Posted {new Date(post.published_at).toLocaleString()}
           </div>

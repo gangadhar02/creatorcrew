@@ -191,6 +191,14 @@ export async function ingestTweetByUrl(
     like_count: nt.likes,
     comment_count: nt.replies,
     ...(nt.views != null ? { view_count: nt.views } : {}),
+    ...(nt.views && nt.views > 0
+      ? {
+          engagement_rate:
+            Math.round(
+              ((nt.likes + nt.replies + (nt.retweets ?? 0)) / nt.views) * 10000
+            ) / 100,
+        }
+      : {}),
     published_at: nt.createdISO,
     thumbnail_url: nt.media[0] || null,
     raw_json: nt.raw as Record<string, unknown>,
