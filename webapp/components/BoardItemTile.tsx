@@ -120,9 +120,9 @@ function TweetCard({ post, onOpen }: { post: Post; onOpen: (e: React.MouseEvent)
         <XLogo className="ml-1 h-4 w-4 shrink-0 text-foreground/70" />
       </div>
 
-      {/* Text — full tweet, not clamped */}
+      {/* Text — clamped on the card (full text shows in the opened view) */}
       {post.title_or_caption && (
-        <p className="mt-2.5 whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground">
+        <p className="mt-2.5 line-clamp-[8] whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground">
           {post.title_or_caption}
         </p>
       )}
