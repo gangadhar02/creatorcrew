@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { X, Heart, MessageCircle, Eye } from "lucide-react";
-import { igImg } from "@/lib/proxy-image";
+import { X, Heart, MessageCircle, Eye, Repeat2, BadgeCheck } from "lucide-react";
+import { mediaImg } from "@/lib/proxy-image";
 import type { ExpandedBoardItem } from "@/app/boards/[id]/page";
 import { useDocumentOverlay } from "@/components/canvas/DocumentOverlay";
 import { usePostOverlay } from "@/components/canvas/PostOverlay";
@@ -69,34 +69,118 @@ function LoadingTile() {
   );
 }
 
-function PostTile({ post }: { post: NonNullable<ExpandedBoardItem["creator_post"]> }) {
+type Post = NonNullable<ExpandedBoardItem["creator_post"]>;
+
+function PostTile({ post }: { post: Post }) {
   const postOverlay = usePostOverlay();
+  const open = (e: React.MouseEvent) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    postOverlay.openPost({
+      post,
+      rect: { top: r.top, left: r.left, width: r.width, height: r.height },
+    });
+  };
+  // Tweets read text-first (like an X embed); reels/posts read media-first.
+  return post.platform === "x" ? (
+    <TweetCard post={post} onOpen={open} />
+  ) : (
+    <ReelCard post={post} onOpen={open} />
+  );
+}
+
+/** X / Twitter card — header (avatar · name · @handle · X logo), full text,
+ *  media, then the engagement row. Mirrors a native tweet embed. */
+function TweetCard({ post, onOpen }: { post: Post; onOpen: (e: React.MouseEvent) => void }) {
+  const c = post.creator;
+  const media = tweetMedia(post);
   return (
-    <button
-      type="button"
-      onClick={(e) => {
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-        postOverlay.openPost({
-          post,
-          rect: {
-            top: rect.top,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-          },
-        });
-      }}
-      className="block w-full text-left"
-    >
+    <button type="button" onClick={onOpen} className="block w-full p-3.5 text-left">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        {c?.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={mediaImg(c.avatar_url, "x")}
+            alt=""
+            className="h-9 w-9 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <div className="h-9 w-9 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+        )}
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="flex items-center gap-1 text-[13px] font-semibold">
+            <span className="truncate">{c?.display_name || c?.handle}</span>
+            {c?.is_verified && <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-sky-500" />}
+          </div>
+          <div className="truncate text-[11px] text-[var(--muted-foreground)]">
+            @{c?.handle}
+            {post.published_at ? ` · ${relTime(post.published_at)}` : ""}
+          </div>
+        </div>
+        <XLogo className="ml-1 h-4 w-4 shrink-0 text-foreground/70" />
+      </div>
+
+      {/* Text — full tweet, not clamped */}
+      {post.title_or_caption && (
+        <p className="mt-2.5 whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground">
+          {post.title_or_caption}
+        </p>
+      )}
+
+      {/* Media */}
+      {media.length > 0 && (
+        <div
+          className={
+            "mt-3 grid gap-1 overflow-hidden rounded-xl border border-border/60 " +
+            (media.length === 1 ? "grid-cols-1" : "grid-cols-2")
+          }
+        >
+          {media.slice(0, 4).map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={i}
+              src={mediaImg(url, "x")}
+              alt=""
+              className={
+                media.length === 1
+                  ? "w-full object-cover"
+                  : "aspect-square w-full object-cover"
+              }
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Engagement */}
+      <div className="mt-3 flex items-center gap-4 text-[11px] text-[var(--muted-foreground)]">
+        <span className="flex items-center gap-1">
+          <Heart className="h-3.5 w-3.5" /> {fmtCount(post.like_count)}
+        </span>
+        <span className="flex items-center gap-1">
+          <Repeat2 className="h-3.5 w-3.5" /> {fmtCount(retweetCount(post))}
+        </span>
+        <span className="flex items-center gap-1">
+          <MessageCircle className="h-3.5 w-3.5" /> {fmtCount(post.comment_count)}
+        </span>
+        {post.view_count > 0 && (
+          <span className="flex items-center gap-1">
+            <Eye className="h-3.5 w-3.5" /> {fmtCount(post.view_count)}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+/** Instagram / reel card — media-first, then metrics + caption. */
+function ReelCard({ post, onOpen }: { post: Post; onOpen: (e: React.MouseEvent) => void }) {
+  return (
+    <button type="button" onClick={onOpen} className="block w-full text-left">
       {post.thumbnail_url && (
         <div className="aspect-[4/5] bg-zinc-200 dark:bg-zinc-800">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={
-              post.platform === "instagram"
-                ? igImg(post.thumbnail_url)
-                : post.thumbnail_url
-            }
+            src={mediaImg(post.thumbnail_url, post.platform)}
             alt=""
             className="h-full w-full object-cover"
           />
@@ -124,6 +208,45 @@ function PostTile({ post }: { post: NonNullable<ExpandedBoardItem["creator_post"
         )}
       </div>
     </button>
+  );
+}
+
+/** All image media_url_https from the stored tweet JSON (falls back to thumb). */
+function tweetMedia(post: Post): string[] {
+  const raw = (post as unknown as { raw_json?: { mediaDetails?: { media_url_https?: string; type?: string }[] } }).raw_json;
+  const urls = (raw?.mediaDetails || [])
+    .map((m) => m.media_url_https)
+    .filter((u): u is string => !!u);
+  if (urls.length) return urls;
+  return post.thumbnail_url ? [post.thumbnail_url] : [];
+}
+
+function retweetCount(post: Post): number {
+  const raw = (post as unknown as { raw_json?: { retweet_count?: number } }).raw_json;
+  return raw?.retweet_count ?? 0;
+}
+
+function relTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const s = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12) return `${mo}mo`;
+  return `${Math.floor(mo / 12)}y`;
+}
+
+function XLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
   );
 }
 
