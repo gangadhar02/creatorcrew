@@ -14,6 +14,7 @@ import {
   detectPlatform,
   ingestInstagramPostByUrl,
 } from "@/lib/ingest/post-by-url";
+import { ingestTweetByUrl } from "@/lib/ingest/tweet";
 
 export const runtime = "nodejs";
 
@@ -85,13 +86,11 @@ export async function POST(
       } else {
         // Not cached yet — ingest the post from its URL on demand.
         const platform = detectPlatform(body.url);
-        if (platform !== "instagram") {
+        if (platform === "unknown") {
           return NextResponse.json(
             {
               error:
-                platform === "x"
-                  ? "X/Twitter links aren't supported yet. Paste an Instagram post or reel link."
-                  : "Unrecognized link. Paste an Instagram post or reel URL.",
+                "Unrecognized link. Paste an Instagram post/reel or an X (Twitter) link.",
             },
             { status: 400 }
           );
@@ -111,12 +110,17 @@ export async function POST(
         }
 
         try {
-          const ingested = await ingestInstagramPostByUrl(workspaceId, body.url);
+          const ingested =
+            platform === "x"
+              ? await ingestTweetByUrl(workspaceId, body.url)
+              : await ingestInstagramPostByUrl(workspaceId, body.url);
           if (!ingested) {
             return NextResponse.json(
               {
                 error:
-                  "Couldn't fetch that post. It may be private, removed, or not a public Instagram post.",
+                  platform === "x"
+                    ? "Couldn't fetch that tweet. It may be private, protected, or removed."
+                    : "Couldn't fetch that post. It may be private, removed, or not a public Instagram post.",
               },
               { status: 502 }
             );
