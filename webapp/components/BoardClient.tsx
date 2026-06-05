@@ -9,10 +9,13 @@ import SectionTabs from "./board/SectionTabs";
 import PromptDialog from "./canvas/PromptDialog";
 import CreateMenu, { type CreateAction } from "./canvas/CreateMenu";
 import { DocumentOverlayProvider } from "./canvas/DocumentOverlay";
+import { PostOverlayProvider } from "./canvas/PostOverlay";
 import BoardSettingsMenu, { type SortMode, type ItemKindFilter } from "./board/BoardSettingsMenu";
 import ShareMenu, { type Visibility } from "./board/ShareMenu";
 import { usePostChat } from "./post-chat";
-import { Plus, MessageSquare, Share2, Zap, Settings2 } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Plus, MessageSquare, Share2, Zap, Settings2 } from "lucide-react";
 
 const ALL_KINDS: ItemKindFilter[] = ["document", "card", "post", "file"];
 
@@ -270,10 +273,22 @@ export default function BoardClient({
   const chatActive = chatPanel.isOpen;
   return (
    <DocumentOverlayProvider onLocalUpdate={patchDocumentLocal}>
-    <div onDragOver={onDragOver} onDrop={onDrop} className="space-y-4">
+    <PostOverlayProvider>
+    <div onDragOver={onDragOver} onDrop={onDrop} className="-mt-4 space-y-4 lg:-mt-5">
       {/* Header */}
       <header className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2">
+          <Button
+            render={<Link href="/boards" />}
+            nativeButton={false}
+            variant="ghost"
+            size="icon-sm"
+            className="-ml-1 shrink-0 text-muted-foreground hover:text-foreground"
+            aria-label="Back to boards"
+            title="Back to boards"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <h1 className="truncate text-2xl font-semibold tracking-tight">
             {board.name}
           </h1>
@@ -427,6 +442,7 @@ export default function BoardClient({
         onClose={() => setSectionDialog(false)}
       />
     </div>
+    </PostOverlayProvider>
    </DocumentOverlayProvider>
   );
 }

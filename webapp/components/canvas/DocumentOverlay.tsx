@@ -4,7 +4,7 @@
  * Eden-style document zoom. Clicking a document card opens a full-screen editor
  * that FLIP-animates out of the card's on-screen box (measured at click time,
  * so it works even under the canvas's CSS scale transform — no layoutId), and
- * zooms back home on close. The editor (BlockEditor) lives here at scale 1.
+ * zooms back home on close. The editor (PlateDocEditor) lives here at scale 1.
  */
 import {
   createContext,
@@ -17,8 +17,9 @@ import {
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, MessageSquare, Share2, Zap, Settings2 } from "lucide-react";
-import BlockEditor from "@/components/editor/BlockEditor";
+import PlateDocEditor from "@/components/editor/plate/PlateDocEditor";
 import { fetchJson } from "@/lib/optimistic/withRollback";
+import { getMainInsetRect } from "./overlay-rect";
 
 export type OpenDocPayload = {
   documentId: string;
@@ -137,9 +138,9 @@ function OverlayInner({
 
   const r = payload.rect;
   // Target = the main content area (so the sidebar stays visible), Eden-style.
-  const [main, setMain] = useState(() => getMainRect());
+  const [main, setMain] = useState(() => getMainInsetRect());
   useEffect(() => {
-    const onResize = () => setMain(getMainRect());
+    const onResize = () => setMain(getMainInsetRect());
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -149,10 +150,10 @@ function OverlayInner({
 
   return (
     <motion.div
-      className="fixed z-[91] overflow-hidden bg-background"
-      initial={{ top: r.top, left: r.left, width: r.width, height: r.height, borderRadius: 12 }}
-      animate={{ top: main.top, left: main.left, width: main.width, height: main.height, borderRadius: 0 }}
-      exit={{ top: r.top, left: r.left, width: r.width, height: r.height, borderRadius: 12, opacity: 0 }}
+      className="fixed z-[91] overflow-hidden border border-border/70 bg-card shadow-[0_8px_40px_-12px_rgba(0,0,0,0.25)]"
+      initial={{ top: r.top, left: r.left, width: r.width, height: r.height, borderRadius: 16 }}
+      animate={{ top: main.top, left: main.left, width: main.width, height: main.height, borderRadius: 16 }}
+      exit={{ top: r.top, left: r.left, width: r.width, height: r.height, borderRadius: 16, opacity: 0 }}
       transition={{ type: "spring", stiffness: 340, damping: 36 }}
       style={{ position: "fixed" }}
     >
@@ -194,7 +195,7 @@ function OverlayInner({
               placeholder="Untitled"
               className="mb-4 w-full bg-transparent text-3xl font-bold outline-none placeholder:text-muted-foreground/40"
             />
-            <BlockEditor initialMarkdown={payload.body_md} onChange={saveBody} />
+            <PlateDocEditor initialMarkdown={payload.body_md} onChange={saveBody} />
           </div>
         </div>
         <div className="flex justify-end px-6 py-2 text-[11px] tabular-nums text-muted-foreground/60">
@@ -205,17 +206,3 @@ function OverlayInner({
   );
 }
 
-function getMainRect() {
-  const w = typeof window !== "undefined" ? window.innerWidth : 1200;
-  const h = typeof window !== "undefined" ? window.innerHeight : 800;
-  if (typeof document !== "undefined") {
-    const m = document.querySelector("main");
-    if (m) {
-      const r = m.getBoundingClientRect();
-      // Anchor to the viewport (full height in the main column) so a scrolled
-      // page doesn't push the doc's header off-screen.
-      return { top: 0, left: r.left, width: r.width, height: h };
-    }
-  }
-  return { top: 0, left: 0, width: w, height: h };
-}

@@ -81,10 +81,7 @@ export default function BookmarkCard({
   }
 
   return (
-    <div
-      className="rounded-lg border border-border bg-card shadow-sm overflow-hidden"
-      style={{ width: item.w || 300 }}
-    >
+    <div className="w-full overflow-hidden rounded-2xl bg-card ring-1 ring-black/[0.04] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-14px_rgba(0,0,0,0.2)] transition-shadow duration-200 hover:shadow-[0_2px_6px_rgba(0,0,0,0.06),0_18px_40px_-18px_rgba(0,0,0,0.3)] dark:ring-white/[0.06] dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_10px_28px_-14px_rgba(0,0,0,0.7)]">
       <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
         <span
           className={cn(

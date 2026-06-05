@@ -10,7 +10,8 @@
   --border: oklch(0.922 0 0);
   --card: oklch(1 0 0);
   --accent: oklch(0.97 0 0);
-  --background: oklch(1 0 0);
+  /* Slightly off-white page background (#f6f6f6) so white cards lift off it, like Eden. */
+  --background: oklch(0.9685 0 0);
   --foreground: oklch(0.145 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -384,3 +385,52 @@ html.sidebar-collapsed aside[data-role="app-sidebar"] .sidebar-nav-link > span {
 .creatorcrew-landing .snap-x-track > * {
   scroll-snap-align: start;
 }
+
+/* Code-block syntax highlighting (lowlight / highlight.js token classes).
+   GitHub-ish palette; works in light + dark via CSS vars on the tokens. */
+.hljs-comment,
+.hljs-quote { color: #6a737d; font-style: italic; }
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-doctag,
+.hljs-type { color: #d73a49; }
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-doctag,
+.dark .hljs-type { color: #ff7b72; }
+.hljs-string,
+.hljs-regexp,
+.hljs-meta .hljs-string { color: #032f62; }
+.dark .hljs-string,
+.dark .hljs-regexp,
+.dark .hljs-meta .hljs-string { color: #a5d6ff; }
+.hljs-number,
+.hljs-literal,
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable { color: #005cc5; }
+.dark .hljs-number,
+.dark .hljs-literal,
+.dark .hljs-attr,
+.dark .hljs-attribute,
+.dark .hljs-variable,
+.dark .hljs-template-variable { color: #79c0ff; }
+.hljs-title,
+.hljs-title.function_,
+.hljs-section { color: #6f42c1; }
+.dark .hljs-title,
+.dark .hljs-title.function_,
+.dark .hljs-section { color: #d2a8ff; }
+.hljs-name,
+.hljs-selector-class,
+.hljs-selector-id,
+.hljs-built_in,
+.hljs-symbol { color: #22863a; }
+.dark .hljs-name,
+.dark .hljs-selector-class,
+.dark .hljs-selector-id,
+.dark .hljs-built_in,
+.dark .hljs-symbol { color: #7ee787; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 600; }

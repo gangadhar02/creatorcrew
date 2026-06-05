@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import type { Board, BoardItem, Card, Document, FileRow } from "@/lib/types-boards";
@@ -45,16 +44,9 @@ export default async function BoardDetail({
   const items = (itemsRow || []) as unknown as ExpandedBoardItem[];
 
   return (
-    <div className="space-y-5">
-      <Link
-        href="/boards"
-        className="text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-      >
-        ← Back to boards
-      </Link>
-
+    <>
       <RecentBoardTracker boardId={board.id} name={board.name} />
       <BoardClient board={board} initialItems={items} />
-    </div>
+    </>
   );
 }

@@ -7,7 +7,6 @@ import { Trash2 } from "lucide-react";
 import MasonryGrid from "@/components/board/MasonryGrid";
 import CreateMenu, { type CreateAction } from "@/components/canvas/CreateMenu";
 import PromptDialog from "@/components/canvas/PromptDialog";
-import { COLUMN_WIDTH } from "@/components/canvas/types";
 import BoardItemTile from "@/components/BoardItemTile";
 import type { ExpandedBoardItem } from "@/app/boards/[id]/page";
 
@@ -58,7 +57,8 @@ function estimateHeight(item: ExpandedBoardItem): number {
     case "file":
       return item.file?.kind === "image" ? 340 : 150;
     case "document":
-      return 220;
+      // Fixed A4-portrait card (aspect 210/297) ≈ width * 1.414.
+      return 440;
     case "card":
     default:
       return 150;
@@ -151,7 +151,7 @@ export default function BoardCanvasView({
 
   return (
     <div
-      className="subtle-scroll relative -mx-4 h-[calc(100vh-150px)] w-[calc(100%+2rem)] overflow-y-auto px-4 sm:-mx-6 sm:w-[calc(100%+3rem)] sm:px-6"
+      className="subtle-scroll relative -mx-4 h-[calc(100vh-150px)] w-[calc(100%+2rem)] overflow-y-auto px-4 pt-3 sm:-mx-6 sm:w-[calc(100%+3rem)] sm:px-6"
       onContextMenu={openMenu}
       onDragOver={(e) => handlers && e.preventDefault()}
       onDrop={onDrop}
@@ -161,7 +161,7 @@ export default function BoardCanvasView({
         estimateHeight={estimateHeight}
         onReorder={reorderable ? onReorder : undefined}
         renderItem={(item) => (
-          <div data-card data-card-id={item.id} style={{ width: COLUMN_WIDTH }}>
+          <div data-card data-card-id={item.id} className="w-full">
             <BoardItemTile item={item} onDelete={onDelete} />
           </div>
         )}
