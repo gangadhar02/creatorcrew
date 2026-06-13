@@ -95,7 +95,7 @@ export default function LoginForm({
     }
   }
 
-  // Step 2 of the code flow — enter the 6-digit code we just emailed.
+  // Step 2 of the code flow — enter the 8-digit code we just emailed.
   if (sent) {
     return (
       <form onSubmit={handleVerifyCode} className="space-y-4 animate-page-in">
@@ -114,7 +114,7 @@ export default function LoginForm({
         <div className="space-y-1">
           <p className="font-medium">Enter your code</p>
           <p className="text-sm text-muted-foreground">
-            We sent a 6-digit code to <strong>{email}</strong>.
+            We sent an 8-digit code to <strong>{email}</strong>.
           </p>
         </div>
         <input
@@ -125,18 +125,18 @@ export default function LoginForm({
           aria-label="Verification code"
           required
           autoFocus
-          placeholder="123456"
-          maxLength={6}
+          placeholder="12345678"
+          maxLength={8}
           value={code}
           onChange={(e) =>
-            setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+            setCode(e.target.value.replace(/\D/g, "").slice(0, 8))
           }
-          className={`${inputClass} text-center text-lg tracking-[0.5em]`}
+          className={`${inputClass} text-center text-lg tracking-[0.4em]`}
         />
         {error && <p className="text-xs text-destructive">{error}</p>}
         <button
           type="submit"
-          disabled={pending || code.length < 6}
+          disabled={pending || code.length < 8}
           className={primaryBtnClass}
         >
           {pending ? (
@@ -227,7 +227,7 @@ export default function LoginForm({
             Get started
           </button>
           <p className="text-center text-[11px] text-muted-foreground">
-            No password required. We&apos;ll email you a 6-digit sign-in code.
+            No password required. We&apos;ll email you an 8-digit sign-in code.
           </p>
         </form>
       ) : (
