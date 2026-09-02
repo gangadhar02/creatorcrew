@@ -454,26 +454,40 @@ def main() -> None:
         collections_filter = cfg.get("collections_filter") or []
         items_with_collection: list[tuple[dict, str | None]] = []
 
+        use_all_saves = not collections_filter
         if collections_filter:
-            collections = fetch_collections(s)
-            log.info(f"Found {len(collections)} collections on Instagram")
-            wanted = {
-                c.get("collection_name"): c.get("collection_id")
-                for c in collections
-                if c.get("collection_name") in collections_filter
-            }
-            missing = set(collections_filter) - set(wanted)
-            if missing:
-                log.warning(f"Collections in filter not found on Instagram: {missing}")
-            for name, cid in wanted.items():
-                log.info(f"Fetching collection: {name} (id={cid})")
-                try:
-                    for item in iter_collection_posts(s, cid):
-                        items_with_collection.append((item, name))
-                except Exception as e:
-                    log.error(f"Failed to fetch collection {name}: {e}")
-        else:
-            log.info("No collections_filter set; fetching all saved posts")
+            try:
+                collections = fetch_collections(s)
+                log.info(f"Found {len(collections)} collections on Instagram")
+                wanted = {
+                    c.get("collection_name"): c.get("collection_id")
+                    for c in collections
+                    if c.get("collection_name") in collections_filter
+                }
+                missing = set(collections_filter) - set(wanted)
+                if missing:
+                    log.warning(
+                        f"Collections in filter not found on Instagram: {missing}"
+                    )
+                for name, cid in wanted.items():
+                    log.info(f"Fetching collection: {name} (id={cid})")
+                    try:
+                        for item in iter_collection_posts(s, cid):
+                            items_with_collection.append((item, name))
+                    except Exception as e:
+                        log.error(f"Failed to fetch collection {name}: {e}")
+            except requests.exceptions.HTTPError as e:
+                status = e.response.status_code if e.response is not None else "?"
+                log.warning(
+                    f"Instagram's collections/list endpoint returned HTTP {status} "
+                    "(Meta appears to have retired it server-side). Falling back "
+                    "to syncing all saved posts; collection tagging is disabled "
+                    "for this run."
+                )
+                use_all_saves = True
+
+        if use_all_saves:
+            log.info("Fetching all saved posts (no collection filter)")
             for item in iter_all_saves(s):
                 items_with_collection.append((item, None))
 
